@@ -6,6 +6,7 @@ import { HSVAdjuster } from './components/Tuning/HSVAdjuster';
 import { YieldView } from './components/YieldEngine/YieldView';
 import { LibraryView } from './components/Library/LibraryView';
 import { ModelManagerView } from './components/ModelManager/ModelManagerView';
+import { ManualView } from './components/Manual/ManualView';
 
 import { CaptureRecord, BoundingBox, CaptureMetadata, HsvFilterParams } from './types/citrus';
 import { 
@@ -301,6 +302,12 @@ export default function App() {
         {activeTab === 'models' && (
           <ModelManagerView
             onModelLoaded={() => {}}
+          />
+        )}
+
+        {activeTab === 'manual' && (
+          <ManualView
+            onNavigateTab={setActiveTab}
           />
         )}
       </main>

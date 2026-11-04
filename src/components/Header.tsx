@@ -1,7 +1,7 @@
 import React from 'react';
-import { Camera, Eye, Sliders, BarChart3, FolderArchive, Cpu } from 'lucide-react';
+import { Camera, Eye, Sliders, BarChart3, FolderArchive, Cpu, BookOpen } from 'lucide-react';
 
-export type ActiveTab = 'camera' | 'annotator' | 'tuner' | 'yield' | 'library' | 'models';
+export type ActiveTab = 'camera' | 'annotator' | 'tuner' | 'yield' | 'library' | 'models' | 'manual';
 
 interface HeaderProps {
   activeTab: ActiveTab;
@@ -106,6 +106,18 @@ export const Header: React.FC<HeaderProps> = ({
             <Cpu className="w-4 h-4" />
             <span>Modelos YOLO</span>
           </button>
+
+          <button
+            onClick={() => onTabChange('manual')}
+            className={`flex items-center gap-2 transition-colors whitespace-nowrap py-1 cursor-pointer ${
+              activeTab === 'manual'
+                ? 'text-amber-400 border-b-2 border-amber-400'
+                : 'text-slate-400 hover:text-slate-200'
+            }`}
+          >
+            <BookOpen className="w-4 h-4" />
+            <span>Manual</span>
+          </button>
         </nav>
 
         {/* Zone 3: Primary Action */}
@@ -175,6 +187,15 @@ export const Header: React.FC<HeaderProps> = ({
         >
           <Cpu className="w-3.5 h-3.5" />
           <span>YOLO</span>
+        </button>
+        <button
+          onClick={() => onTabChange('manual')}
+          className={`flex items-center gap-1.5 px-3 py-1.5 rounded-md text-xs font-medium whitespace-nowrap shrink-0 ${
+            activeTab === 'manual' ? 'bg-amber-500/20 text-amber-400' : 'text-slate-400'
+          }`}
+        >
+          <BookOpen className="w-3.5 h-3.5" />
+          <span>Manual</span>
         </button>
       </div>
     </header>
