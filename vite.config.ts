@@ -6,9 +6,9 @@ import { defineConfig } from 'vite';
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 
-export default defineConfig(({ command, mode }) => {
+export default defineConfig(() => {
   return {
-    base: command === 'build' || mode === 'production' ? '/FruitVision_v1/' : '/',
+    base: './',
     plugins: [react(), tailwindcss()],
     resolve: {
       alias: {
