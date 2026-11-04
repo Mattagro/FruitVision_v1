@@ -7,6 +7,7 @@ import { YieldView } from './components/YieldEngine/YieldView';
 import { LibraryView } from './components/Library/LibraryView';
 import { ModelManagerView } from './components/ModelManager/ModelManagerView';
 import { ManualView } from './components/Manual/ManualView';
+import { OfflineIndicator } from './components/OfflineIndicator';
 
 import { CaptureRecord, BoundingBox, CaptureMetadata, HsvFilterParams } from './types/citrus';
 import { 
@@ -312,6 +313,7 @@ export default function App() {
         )}
       </main>
 
+      <OfflineIndicator />
     </div>
   );
 }

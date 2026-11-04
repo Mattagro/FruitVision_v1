@@ -1,8 +1,11 @@
 {
+  "id": "./",
   "name": "Conteo de Cítricos - Visión y Rendimiento",
   "short_name": "CitrusVision",
+  "description": "Detección, conteo y estimación agronómica de rendimiento de cítricos en terreno sin conexión a internet.",
   "lang": "es",
   "start_url": "./",
+  "scope": "./",
   "display": "standalone",
   "orientation": "any",
   "background_color": "#020617",

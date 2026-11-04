@@ -50,6 +50,23 @@ self.addEventListener('fetch', (event) => {
     return;
   }
 
+  // Google Fonts caching for offline UI typography
+  if (url.origin.includes('fonts.googleapis.com') || url.origin.includes('fonts.gstatic.com')) {
+    event.respondWith(
+      caches.match(req).then((cachedResponse) => {
+        if (cachedResponse) return cachedResponse;
+        return fetch(req).then((networkResponse) => {
+          if (networkResponse && networkResponse.status === 200) {
+            const resClone = networkResponse.clone();
+            caches.open(CACHE_NAME).then((cache) => cache.put(req, resClone));
+          }
+          return networkResponse;
+        }).catch(() => new Response('', { status: 200 }));
+      })
+    );
+    return;
+  }
+
   // Same-origin assets: Stale-While-Revalidate / Cache-First
   if (url.origin === location.origin) {
     event.respondWith(

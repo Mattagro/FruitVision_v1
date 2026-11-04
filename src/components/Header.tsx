@@ -1,5 +1,6 @@
 import React from 'react';
 import { Camera, Eye, Sliders, BarChart3, FolderArchive, Cpu, BookOpen } from 'lucide-react';
+import { PWAInstallButton } from './PWAInstallButton';
 
 export type ActiveTab = 'camera' | 'annotator' | 'tuner' | 'yield' | 'library' | 'models' | 'manual';
 
@@ -120,13 +121,14 @@ export const Header: React.FC<HeaderProps> = ({
           </button>
         </nav>
 
-        {/* Zone 3: Primary Action */}
-        <div className="flex items-center gap-3 shrink-0">
+        {/* Zone 3: Primary Action & PWA Install */}
+        <div className="flex items-center gap-2 sm:gap-3 shrink-0">
+          <PWAInstallButton />
           <button
             onClick={onNewPhotoClick}
-            className="px-4 py-2 text-xs font-semibold text-slate-950 bg-amber-500 hover:bg-amber-400 active:scale-95 transition-all rounded-lg whitespace-nowrap shrink-0 shadow-sm cursor-pointer"
+            className="px-3.5 py-1.5 sm:px-4 sm:py-2 text-xs font-semibold text-slate-950 bg-amber-500 hover:bg-amber-400 active:scale-95 transition-all rounded-lg whitespace-nowrap shrink-0 shadow-sm cursor-pointer"
           >
-            Cargar Fotografía
+            Cargar Foto
           </button>
         </div>
 
