@@ -1,0 +1,6 @@
+{
+  "name": "Conteo de Cítricos - Visión y Rendimiento",
+  "description": "Detección y conteo en tiempo real de cítricos mediante visión por computador, segmentación HSV adaptativa, modelos YOLO y estimación agronómica de rendimiento en terreno.",
+  "requestFramePermissions": ["camera", "geolocation"],
+  "majorCapabilities": ["MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"]
+}

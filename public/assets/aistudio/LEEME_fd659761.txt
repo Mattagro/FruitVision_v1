@@ -1,0 +1,13 @@
+CONTEO DE CITRICOS - version instalable (PWA)
+
+1) Sube TODO el contenido de esta carpeta (no la carpeta misma) a un hosting con HTTPS:
+   - GitHub Pages: repositorio nuevo > subir archivos > Settings > Pages > rama main.
+   - Netlify o Cloudflare Pages: arrastrar la carpeta.
+2) En el celular, abre la URL en Chrome con conexion y espera a que cargue completa.
+3) Menu de Chrome > "Instalar app" (o "Agregar a pantalla de inicio").
+4) Desde ahi funciona sin senal: capturas, etiquetado, resumen y exportacion.
+
+Notas
+- Si cambias archivos, sube VERSION en sw.js (citricos-v2, v3...) para que los celulares se actualicen.
+- Las capturas viven en el celular. Exporta el .zip y el .csv al terminar cada jornada.
+- Modelo: pestana Modelo > cargar model.json y todos los .bin (TensorFlow.js exportado desde Ultralytics).

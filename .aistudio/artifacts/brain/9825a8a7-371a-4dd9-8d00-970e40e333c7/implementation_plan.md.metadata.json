@@ -1,0 +1,6 @@
+{
+  "summary": "Plan de implementación completo para el despliegue y optimización de la aplicación de Conteo de Cítricos y Estimación de Rendimiento en Terreno. Incluye arquitectura modular en React 19 + TypeScript, cámara en vivo con HUD de detección en tiempo real, algoritmo HSV adaptativo con filtros de circularidad y morfología acelerada, optimización del motor de inferencia YOLO TF.js, muestras integradas para prueba inmediata, exportación de datasets YOLO y calculadora agronómica de rendimiento.",
+  "updatedAt": "2026-11-03T23:20:51.593551768Z",
+  "requestFeedback": true,
+  "userFacing": true
+}

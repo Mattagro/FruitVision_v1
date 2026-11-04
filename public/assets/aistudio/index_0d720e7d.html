@@ -1,0 +1,912 @@
+<!doctype html>
+<html lang="es">
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
+<meta name="theme-color" content="#16231b">
+<link rel="manifest" href="manifest.webmanifest">
+<link rel="icon" href="icon-192.png">
+<link rel="apple-touch-icon" href="icon-192.png">
+<style>html{padding-top:env(safe-area-inset-top,0px);padding-bottom:env(safe-area-inset-bottom,0px);color-scheme:light}body{margin:0}[hidden]{display:none!important}img{max-width:100%}</style>
+<title>Conteo de Cítricos</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Archivo:wght@500;600;800&family=IBM+Plex+Mono:wght@400;500&display=swap">
+<style>
+/* Layout: herramienta de terreno en una columna; foto como protagonista, pestañas fijas abajo, números grandes legibles a pleno sol. */
+:root{
+  --bg:#edf1e8; --surface:#fafcf6; --surface-2:#e1e8d8; --fg:#16231b; --muted:#536454; --line:#c4cfba;
+  --accent:#c2410c; --accent-fg:#ffffff; --ok:#237a35; --warn:#a15c07; --bad:#b42323;
+  --font-display:'Archivo',system-ui,-apple-system,'Segoe UI',Roboto,sans-serif;
+  --font-body:'Archivo',system-ui,-apple-system,'Segoe UI',Roboto,sans-serif;
+  --font-mono:'IBM Plex Mono',ui-monospace,SFMono-Regular,Menlo,Consolas,monospace;
+}
+@media (prefers-color-scheme: dark){
+  :root:not([data-theme="light"]){
+    --bg:#0e1611; --surface:#17221a; --surface-2:#203026; --fg:#e7efe3; --muted:#9db29f; --line:#2f4235;
+    --accent:#ff8a3d; --accent-fg:#1c0d03; --ok:#6fd884; --warn:#f2b441; --bad:#ff8c8c; color-scheme:dark;
+  }
+}
+:root[data-theme="dark"]{
+  --bg:#0e1611; --surface:#17221a; --surface-2:#203026; --fg:#e7efe3; --muted:#9db29f; --line:#2f4235;
+  --accent:#ff8a3d; --accent-fg:#1c0d03; --ok:#6fd884; --warn:#f2b441; --bad:#ff8c8c; color-scheme:dark;
+}
+*{box-sizing:border-box}
+html,body{background:var(--bg)}
+body{
+  color:var(--fg); font-family:var(--font-body); font-size:15px; line-height:1.45;
+  padding-block:0 92px;
+  padding-left:max(16px,env(safe-area-inset-left,0px));
+  padding-right:max(16px,env(safe-area-inset-right,0px));
+}
+button,input,select{font:inherit;color:inherit}
+:focus-visible{outline:3px solid var(--accent);outline-offset:2px}
+.wrap{max-width:720px;margin-inline:auto;display:flex;flex-direction:column;gap:16px;min-width:0}
+.top{display:flex;flex-wrap:wrap;align-items:center;justify-content:space-between;gap:8px 12px;padding-top:16px}
+.brand{font-family:var(--font-display);font-weight:800;font-size:22px;letter-spacing:-.01em;margin:0}
+.chips{display:flex;flex-wrap:wrap;gap:6px}
+.chip{font-family:var(--font-mono);font-size:11px;padding:3px 9px;border:1px solid var(--line);border-radius:99px;background:var(--surface);color:var(--muted);white-space:nowrap}
+.chip.ok{color:var(--ok);border-color:currentColor}
+.chip.warn{color:var(--warn);border-color:currentColor;cursor:pointer}
+.chip.bad{color:var(--bad);border-color:currentColor}
+h2{font-family:var(--font-display);font-size:12px;font-weight:800;text-transform:uppercase;letter-spacing:.09em;color:var(--muted);margin:0 0 8px}
+.card{background:var(--surface);border:1px solid var(--line);border-radius:12px;padding:14px;min-width:0}
+.fields{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:10px}
+.fields label,.lab{display:flex;flex-direction:column;gap:4px;font-size:12px;color:var(--muted);font-weight:600;min-width:0}
+input[type=text],input[type=number],select{
+  min-height:46px;padding:8px 10px;border:1px solid var(--line);border-radius:8px;background:var(--bg);font-size:16px;width:100%;min-width:0;color:var(--fg)}
+input[type=range]{width:100%;accent-color:var(--accent);min-height:36px}
+.btn{
+  display:inline-flex;align-items:center;justify-content:center;gap:8px;min-height:48px;padding:10px 16px;
+  border:1px solid var(--line);border-radius:10px;background:var(--surface);font-weight:600;cursor:pointer;text-align:center;user-select:none}
+.btn:active{transform:translateY(1px)}
+.btn[disabled]{opacity:.45;cursor:not-allowed}
+.btn.primary{background:var(--accent);color:var(--accent-fg);border-color:var(--accent)}
+.btn.big{min-height:60px;font-size:17px;flex:1 1 200px}
+.btn.sm{min-height:40px;padding:6px 12px;font-size:14px}
+.btn.danger{color:var(--bad);border-color:currentColor}
+.btn:focus-within{outline:3px solid var(--accent);outline-offset:2px}
+.vh{position:absolute;width:1px;height:1px;opacity:0;overflow:hidden;pointer-events:none}
+.fb{position:relative;overflow:hidden}
+.fi{position:absolute;inset:0;width:100%;height:100%;opacity:0;cursor:pointer;font-size:0;z-index:1}
+.row{display:flex;flex-wrap:wrap;gap:10px;align-items:center}
+.row>*{min-width:0}
+.hint{font-size:13px;color:var(--muted);margin:0}
+.steps{margin:0;padding:0;list-style:none;display:grid;gap:10px}
+.steps li{display:grid;grid-template-columns:28px 1fr;gap:10px;align-items:start}
+.steps b{font-family:var(--font-mono);font-weight:500;width:28px;height:28px;border-radius:50%;background:var(--surface-2);display:grid;place-items:center;font-size:13px}
+.stage{position:relative;overflow:auto;max-height:62vh;border-radius:10px;background:#000;border:1px solid var(--line);-webkit-overflow-scrolling:touch}
+.stage canvas{display:block;width:100%;height:auto;cursor:crosshair}
+.counter{display:flex;align-items:flex-end;gap:16px;flex-wrap:wrap}
+.num{font-family:var(--font-display);font-weight:800;font-size:68px;line-height:.9;font-variant-numeric:tabular-nums;letter-spacing:-.03em}
+.legend{font-family:var(--font-mono);font-size:12px;color:var(--muted);display:flex;flex-direction:column;gap:2px}
+.sw{display:inline-block;width:10px;height:10px;border:2px solid;vertical-align:-1px;margin-right:5px}
+.sw.a{border-color:#00b8d9}.sw.m{border-color:#e6b800}
+.seg{display:inline-flex;border:1px solid var(--line);border-radius:10px;overflow:hidden}
+.seg button{min-height:40px;padding:6px 14px;border:0;background:var(--surface);font-family:var(--font-mono);cursor:pointer}
+.seg button+button{border-left:1px solid var(--line)}
+.seg button[aria-pressed=true]{background:var(--fg);color:var(--bg)}
+details{border:1px solid var(--line);border-radius:10px;padding:0 12px;background:var(--bg)}
+summary{min-height:44px;display:flex;align-items:center;font-weight:600;cursor:pointer}
+details[open] summary{border-bottom:1px solid var(--line);margin-bottom:12px}
+details>div{padding-bottom:12px;display:grid;gap:12px}
+.list{list-style:none;margin:0;padding:0;display:grid;gap:8px}
+.item{display:grid;grid-template-columns:1fr auto;gap:8px;align-items:stretch}
+.item .open{display:grid;grid-template-columns:64px minmax(0,1fr) auto;gap:12px;align-items:center;text-align:left;padding:8px;border:1px solid var(--line);border-radius:10px;background:var(--surface);cursor:pointer;min-height:64px}
+.item img{width:64px;height:48px;object-fit:cover;border-radius:6px;background:var(--surface-2)}
+.item .t{font-weight:600;overflow-wrap:anywhere}
+.item .s{font-family:var(--font-mono);font-size:12px;color:var(--muted)}
+.item .n{font-family:var(--font-display);font-weight:800;font-size:28px;font-variant-numeric:tabular-nums}
+.tw{overflow-x:auto;border:1px solid var(--line);border-radius:10px}
+table{border-collapse:collapse;width:100%;font-size:14px}
+th,td{padding:9px 10px;text-align:right;white-space:nowrap;font-variant-numeric:tabular-nums}
+th:first-child,td:first-child{text-align:left;white-space:normal;min-width:110px}
+th{font-size:11px;text-transform:uppercase;letter-spacing:.06em;color:var(--muted);font-weight:600;background:var(--surface-2)}
+td{border-top:1px solid var(--line);font-family:var(--font-mono)}
+td:first-child{font-family:var(--font-body);font-weight:600}
+.kpis{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:10px}
+.kpi{padding:10px;border:1px solid var(--line);border-radius:10px;background:var(--bg)}
+.kpi b{display:block;font-family:var(--font-display);font-weight:800;font-size:26px;font-variant-numeric:tabular-nums}
+.kpi span{font-size:12px;color:var(--muted)}
+pre{margin:0;padding:12px;border-radius:10px;background:var(--fg);color:var(--bg);font-family:var(--font-mono);font-size:12px;overflow-x:auto;line-height:1.55}
+.tabs{
+  position:fixed;left:0;right:0;bottom:0;z-index:20;display:grid;grid-template-columns:repeat(4,1fr);
+  background:var(--surface);border-top:1px solid var(--line);
+  padding:0 max(16px,env(safe-area-inset-left,0px)) env(safe-area-inset-bottom,0px) max(16px,env(safe-area-inset-left,0px));
+  padding-right:max(16px,env(safe-area-inset-right,0px));
+}
+.tabs button{min-height:60px;border:0;background:none;font-weight:600;color:var(--muted);cursor:pointer;position:relative;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:2px}
+.tabs button[aria-selected=true]{color:var(--fg)}
+.tabs button[aria-selected=true]::before{content:"";position:absolute;top:0;left:20%;right:20%;height:3px;background:var(--accent);border-radius:0 0 3px 3px}
+.tabs small{font-family:var(--font-mono);font-size:11px;font-weight:400}
+.toast{position:fixed;left:50%;transform:translateX(-50%);bottom:calc(76px + env(safe-area-inset-bottom,0px));z-index:30;background:var(--fg);color:var(--bg);padding:10px 16px;border-radius:99px;font-size:14px;max-width:calc(100% - 32px);text-align:center}
+.mono{font-family:var(--font-mono)}
+.ok{color:var(--ok)}.bad{color:var(--bad)}
+@media (prefers-reduced-motion:no-preference){.btn{transition:transform .08s}}
+@media (min-width:560px){.fields{grid-template-columns:repeat(3,minmax(0,1fr))}}
+</style>
+
+<div class="wrap">
+  <header class="top">
+    <h1 class="brand">Conteo de Cítricos</h1>
+    <div class="chips" id="chips"></div>
+  </header>
+
+  <!-- CAPTURA -->
+  <section id="v-cap" class="wrap" style="gap:16px">
+    <div class="card">
+      <h2>Árbol a fotografiar</h2>
+      <div class="fields">
+        <label>Predio<input type="text" id="fPredio" autocomplete="off"></label>
+        <label>Bloque / cuartel<input type="text" id="fBloque" autocomplete="off"></label>
+        <label>Hilera<input type="text" id="fHilera" autocomplete="off"></label>
+        <label>Árbol<input type="text" id="fArbol" inputmode="numeric" autocomplete="off"></label>
+        <label>Cara del árbol
+          <select id="fLado"><option>A</option><option>B</option><option>C</option><option>D</option></select>
+        </label>
+        <label>Variedad
+          <select id="fVar"><option>Navel</option><option>Valencia</option><option>Clementina</option><option>Mandarina</option><option>Limón</option><option>Pomelo</option><option>Otra</option></select>
+        </label>
+      </div>
+    </div>
+
+    <div class="row">
+      <label class="btn primary big fb">Tomar foto
+        <input class="fi" type="file" id="fileCam" accept="image/*" capture="environment" aria-label="Tomar foto">
+      </label>
+      <label class="btn big fb">Desde galería
+        <input class="fi" type="file" id="fileGal" accept="image/*" aria-label="Elegir foto de la galería">
+      </label>
+    </div>
+
+    <div class="card" id="empty">
+      <h2>Cómo se usa</h2>
+      <ol class="steps">
+        <li><b>1</b><span>Elige una cara del árbol y toma la foto a 1,5–2 m, con el árbol llenando el encuadre.</span></li>
+        <li><b>2</b><span>Toca cada fruto para marcarlo. Toca una caja para borrarla. Ajusta su tamaño con el control deslizante.</span></li>
+        <li><b>3</b><span>Guarda. Cada foto queda como parte de tu dataset, con las cajas listas para entrenar un modelo YOLO.</span></li>
+      </ol>
+      <p class="hint" style="margin-top:12px">Con un modelo cargado (pestaña Modelo) la app propone las cajas y tú corriges. Sin modelo, el asistente de color ayuda a pre-etiquetar fruta ya coloreada.</p>
+    </div>
+
+    <div id="editor" class="card" hidden>
+      <div class="counter">
+        <div class="num" id="count">0</div>
+        <div class="legend">
+          <span>frutos marcados</span>
+          <span><i class="sw m"></i>manual <b id="cMan">0</b></span>
+          <span><i class="sw a"></i>propuesta <b id="cAuto">0</b></span>
+        </div>
+      </div>
+
+      <div class="stage" id="stage" style="margin-top:12px"><canvas id="cv"></canvas></div>
+
+      <div class="row" style="margin-top:12px;justify-content:space-between">
+        <div class="seg" role="group" aria-label="Zoom">
+          <button type="button" data-z="1" aria-pressed="true">1×</button>
+          <button type="button" data-z="2" aria-pressed="false">2×</button>
+          <button type="button" data-z="3" aria-pressed="false">3×</button>
+        </div>
+        <div class="row">
+          <button class="btn sm" type="button" id="btnUndo">Deshacer</button>
+          <button class="btn sm danger" type="button" id="btnClear">Borrar todo</button>
+        </div>
+      </div>
+
+      <label class="lab" style="margin-top:12px">Tamaño de las cajas manuales: <span class="mono" id="pctOut">7%</span>
+        <input type="range" id="pct" min="2" max="20" step="0.5" value="7">
+      </label>
+      <label class="lab" style="margin-top:4px;flex-direction:row;align-items:center;gap:8px">
+        <input type="checkbox" id="showBoxes" checked style="width:20px;height:20px;accent-color:var(--accent)"> Mostrar cajas
+      </label>
+
+      <details style="margin-top:12px">
+        <summary>Asistentes de etiquetado</summary>
+        <div>
+          <div class="row">
+            <select id="cPreset" aria-label="Color del fruto" style="flex:1 1 160px">
+              <option value="naranja">Fruto naranja o mandarina</option>
+              <option value="limon">Fruto amarillo (limón)</option>
+            </select>
+            <button class="btn" type="button" id="btnColor" style="flex:1 1 160px">Pre-etiquetar por color</button>
+          </div>
+          <p class="hint">Experimental. Detecta fruta ya coloreada y deja fuera racimos grandes y fruta verde. Revisa siempre el resultado.</p>
+          <div class="row">
+            <select id="mTiles" aria-label="Mosaico" style="flex:1 1 160px">
+              <option value="1">Foto completa</option>
+              <option value="2">Mosaico 2×2 (fruta pequeña)</option>
+            </select>
+            <button class="btn" type="button" id="btnDetect" style="flex:1 1 160px" disabled>Detectar con modelo</button>
+          </div>
+          <p class="hint" id="detectHint">Carga un modelo en la pestaña Modelo para activar este botón.</p>
+        </div>
+      </details>
+
+      <label class="lab" style="margin-top:12px">Conteo real de esta cara (opcional, sirve para calibrar)
+        <input type="number" id="fReal" inputmode="numeric" min="0" placeholder="Fruta contada a mano o en cosecha">
+      </label>
+      <p class="hint mono" id="geoLine" style="margin-top:8px"></p>
+
+      <div class="row" style="margin-top:14px">
+        <button class="btn primary big" type="button" id="btnSave">Guardar captura</button>
+        <button class="btn" type="button" id="btnCancel">Descartar</button>
+      </div>
+    </div>
+  </section>
+
+  <!-- CAPTURAS -->
+  <section id="v-lib" class="wrap" hidden>
+    <div class="card">
+      <h2>Capturas guardadas</h2>
+      <p class="hint" id="libEmpty">Aún no hay capturas. Las fotos se guardan en este dispositivo.</p>
+      <ul class="list" id="libList"></ul>
+    </div>
+  </section>
+
+  <!-- RESUMEN -->
+  <section id="v-sum" class="wrap" hidden>
+    <div class="card">
+      <h2>Muestreo</h2>
+      <div class="kpis" id="kpis"></div>
+    </div>
+    <div class="card">
+      <h2>Fruta visible por árbol, por bloque</h2>
+      <div class="tw"><table id="tblBlocks"></table></div>
+      <p class="hint" style="margin-top:8px">CV es la variabilidad entre árboles. La última columna indica cuántos árboles se necesitan para estimar la media del bloque con ±10% de error (95% de confianza). Fotografía todas las caras con el mismo protocolo en cada árbol.</p>
+    </div>
+    <div class="card">
+      <h2>Estimación de rendimiento</h2>
+      <div class="fields">
+        <label>Árboles por ha<input type="number" id="yArb" inputmode="decimal" min="0"></label>
+        <label>Peso medio del fruto (g)<input type="number" id="yPeso" inputmode="decimal" min="0"></label>
+        <label>Factor de corrección<input type="number" id="yFac" inputmode="decimal" min="0" step="0.01"></label>
+      </div>
+      <p class="hint" id="calLine" style="margin:10px 0"></p>
+      <div class="tw"><table id="tblYield"></table></div>
+      <p class="hint" style="margin-top:8px">Valores iniciales de ejemplo. Reemplázalos por los del predio. El factor corrige la fruta tapada por follaje y se calibra con los conteos reales.</p>
+    </div>
+    <div class="card">
+      <h2>Exportar</h2>
+      <div class="row">
+        <button class="btn" type="button" id="btnCsv" style="flex:1 1 180px">Tabla de capturas (.csv)</button>
+        <button class="btn primary" type="button" id="btnZip" style="flex:1 1 180px">Dataset YOLO (.zip)</button>
+      </div>
+      <p class="hint" style="margin-top:8px">El .zip incluye imágenes, etiquetas y data.yaml, con separación entrenamiento/validación por árbol. Solo entran las fotos con al menos una caja.</p>
+    </div>
+  </section>
+
+  <!-- MODELO -->
+  <section id="v-mod" class="wrap" hidden>
+    <div class="card">
+      <h2>Modelo de detección</h2>
+      <p id="modStatus" style="margin:0 0 10px;font-weight:600">Sin modelo</p>
+      <div class="row">
+        <label class="btn fb" style="flex:1 1 220px">Cargar model.json y .bin
+          <input class="fi" type="file" id="modFiles" multiple aria-label="Cargar archivos del modelo">
+        </label>
+        <button class="btn danger" type="button" id="btnModDel" hidden>Quitar modelo</button>
+      </div>
+      <p class="hint" style="margin-top:8px">Formato TensorFlow.js exportado desde Ultralytics (YOLOv8 o YOLO11). Se guarda en el dispositivo y no se vuelve a subir.</p>
+      <div class="fields" style="margin-top:12px">
+        <label>Confianza mínima <span class="mono" id="confOut">0.25</span>
+          <input type="range" id="mConf" min="0.05" max="0.9" step="0.05" value="0.25"></label>
+        <label>Solape máximo (IoU) <span class="mono" id="iouOut">0.50</span>
+          <input type="range" id="mIou" min="0.2" max="0.9" step="0.05" value="0.5"></label>
+      </div>
+    </div>
+    <div class="card">
+      <h2>Calidad medida con tus correcciones</h2>
+      <div class="kpis" id="evalKpis"></div>
+      <p class="hint" style="margin-top:8px" id="evalHint"></p>
+    </div>
+    <div class="card">
+      <h2>Entrenar en Colab</h2>
+      <p class="hint" style="margin-bottom:10px">Sube el .zip del dataset a Colab, descomprímelo y ejecuta:</p>
+      <pre id="colab">!pip -q install ultralytics tensorflowjs
+from ultralytics import YOLO
+m = YOLO('yolo11n.pt')
+m.train(data='/content/ds/data.yaml', imgsz=640, epochs=100, batch=16)
+m.export(format='tfjs', imgsz=640)
+# Descarga la carpeta best_web_model/ y carga
+# model.json + todos los .bin en esta pestaña.</pre>
+      <div class="row" style="margin-top:10px"><button class="btn sm" type="button" id="btnCopy">Copiar código</button></div>
+      <p class="hint" style="margin-top:10px">Meta inicial: 300 a 500 fotos con luz y distancias variadas. Reentrena cuando acumules más correcciones.</p>
+    </div>
+  </section>
+</div>
+
+<nav class="tabs" id="tabs" role="tablist">
+  <button role="tab" data-tab="cap" aria-selected="true">Captura</button>
+  <button role="tab" data-tab="lib" aria-selected="false">Capturas<small id="tabN">0</small></button>
+  <button role="tab" data-tab="sum" aria-selected="false">Resumen</button>
+  <button role="tab" data-tab="mod" aria-selected="false">Modelo</button>
+</nav>
+<div class="toast" id="toast" role="status" aria-live="polite" hidden></div>
+
+<script>
+/*PURE_START*/
+const CRC_T=(()=>{const t=new Uint32Array(256);for(let n=0;n<256;n++){let c=n;for(let k=0;k<8;k++)c=c&1?0xEDB88320^(c>>>1):c>>>1;t[n]=c>>>0;}return t;})();
+function crc32(u8){let c=0xFFFFFFFF;for(let i=0;i<u8.length;i++)c=CRC_T[(c^u8[i])&255]^(c>>>8);return (c^0xFFFFFFFF)>>>0;}
+function makeZip(files){
+  const enc=new TextEncoder(),parts=[],cen=[];let off=0;
+  const d=new Date();
+  const dt=((d.getFullYear()-1980)<<9)|((d.getMonth()+1)<<5)|d.getDate();
+  const tm=(d.getHours()<<11)|(d.getMinutes()<<5)|(d.getSeconds()>>1);
+  for(const f of files){
+    const nm=enc.encode(f.name),crc=crc32(f.data),sz=f.data.length;
+    const lh=new DataView(new ArrayBuffer(30));
+    lh.setUint32(0,0x04034b50,true);lh.setUint16(4,20,true);lh.setUint16(6,0x0800,true);lh.setUint16(8,0,true);
+    lh.setUint16(10,tm,true);lh.setUint16(12,dt,true);lh.setUint32(14,crc,true);lh.setUint32(18,sz,true);
+    lh.setUint32(22,sz,true);lh.setUint16(26,nm.length,true);lh.setUint16(28,0,true);
+    parts.push(new Uint8Array(lh.buffer),nm,f.data);
+    const ch=new DataView(new ArrayBuffer(46));
+    ch.setUint32(0,0x02014b50,true);ch.setUint16(4,20,true);ch.setUint16(6,20,true);ch.setUint16(8,0x0800,true);
+    ch.setUint16(10,0,true);ch.setUint16(12,tm,true);ch.setUint16(14,dt,true);ch.setUint32(16,crc,true);
+    ch.setUint32(20,sz,true);ch.setUint32(24,sz,true);ch.setUint16(28,nm.length,true);ch.setUint16(30,0,true);
+    ch.setUint16(32,0,true);ch.setUint16(34,0,true);ch.setUint16(36,0,true);ch.setUint32(38,0,true);ch.setUint32(42,off,true);
+    cen.push(new Uint8Array(ch.buffer),nm);
+    off+=30+nm.length+sz;
+  }
+  let cd=0;for(const c of cen)cd+=c.length;
+  const end=new DataView(new ArrayBuffer(22));
+  end.setUint32(0,0x06054b50,true);end.setUint16(4,0,true);end.setUint16(6,0,true);
+  end.setUint16(8,files.length,true);end.setUint16(10,files.length,true);end.setUint32(12,cd,true);
+  end.setUint32(16,off,true);end.setUint16(20,0,true);
+  return new Blob([...parts,...cen,new Uint8Array(end.buffer)],{type:'application/zip'});
+}
+
+/* Pre-etiquetado por color: umbral HSV, apertura 3x3 y componentes conectados. */
+function colorBlobs(data,w,h,preset){
+  const P=preset==='limon'?{h0:42,h1:66,s:.42,v:.5}:{h0:6,h1:40,s:.5,v:.3};
+  const n=w*h,m=new Uint8Array(n);
+  for(let i=0;i<n;i++){
+    const r=data[i*4],g=data[i*4+1],b=data[i*4+2];
+    const mx=Math.max(r,g,b),mn=Math.min(r,g,b),d=mx-mn;
+    if(mx===0||d===0)continue;
+    if(d/mx<P.s||mx/255<P.v)continue;
+    let hh;
+    if(mx===r)hh=((g-b)/d)%6;else if(mx===g)hh=(b-r)/d+2;else hh=(r-g)/d+4;
+    hh*=60;if(hh<0)hh+=360;
+    if(hh>=P.h0&&hh<=P.h1)m[i]=1;
+  }
+  const er=new Uint8Array(n),di=new Uint8Array(n);
+  for(let y=1;y<h-1;y++)for(let x=1;x<w-1;x++){const i=y*w+x;
+    if(m[i]&&m[i-1]&&m[i+1]&&m[i-w]&&m[i+w]&&m[i-w-1]&&m[i-w+1]&&m[i+w-1]&&m[i+w+1])er[i]=1;}
+  for(let y=1;y<h-1;y++)for(let x=1;x<w-1;x++){const i=y*w+x;
+    if(er[i]||er[i-1]||er[i+1]||er[i-w]||er[i+w]||er[i-w-1]||er[i-w+1]||er[i+w-1]||er[i+w+1])di[i]=1;}
+  const seen=new Uint8Array(n),blobs=[],st=[];
+  for(let s0=0;s0<n;s0++){
+    if(!di[s0]||seen[s0])continue;
+    let minx=w,maxx=0,miny=h,maxy=0,cnt=0;st.length=0;st.push(s0);seen[s0]=1;
+    while(st.length){
+      const i=st.pop(),x=i%w,y=(i/w)|0;cnt++;
+      if(x<minx)minx=x;if(x>maxx)maxx=x;if(y<miny)miny=y;if(y>maxy)maxy=y;
+      if(x>0&&di[i-1]&&!seen[i-1]){seen[i-1]=1;st.push(i-1);}
+      if(x<w-1&&di[i+1]&&!seen[i+1]){seen[i+1]=1;st.push(i+1);}
+      if(y>0&&di[i-w]&&!seen[i-w]){seen[i-w]=1;st.push(i-w);}
+      if(y<h-1&&di[i+w]&&!seen[i+w]){seen[i+w]=1;st.push(i+w);}
+    }
+    blobs.push({minx,maxx,miny,maxy,cnt});
+  }
+  const minA=0.0004*n,maxA=0.05*n,ok=[];let skipped=0;
+  for(const b of blobs){
+    const bw=b.maxx-b.minx+1,bh=b.maxy-b.miny+1,fill=b.cnt/(bw*bh),ar=bw/bh;
+    if(b.cnt<minA)continue;
+    if(b.cnt>maxA||ar<.5||ar>2||fill<.5){skipped++;continue;}
+    ok.push({cx:b.minx+bw/2,cy:b.miny+bh/2,w:bw,h:bh,cnt:b.cnt});
+  }
+  if(ok.length>=5){
+    const as=ok.map(o=>o.cnt).sort((a,b)=>a-b),med=as[as.length>>1];
+    const keep=ok.filter(o=>o.cnt<=med*3.2&&o.cnt>=med/6);
+    return {boxes:keep,skipped:skipped+ok.length-keep.length};
+  }
+  return {boxes:ok,skipped};
+}
+
+/* EXIF: lee fecha y GPS de los primeros bytes de un JPEG. */
+function readExif(buf){
+  const v=new DataView(buf);
+  if(v.getUint16(0)!==0xFFD8)return {};
+  let off=2;
+  while(off<v.byteLength-10){
+    const mk=v.getUint16(off),len=v.getUint16(off+2);
+    if(mk===0xFFE1&&v.getUint32(off+4)===0x45786966)return parseTiff(v,off+10);
+    if((mk&0xFF00)!==0xFF00)break;
+    off+=2+len;
+  }
+  return {};
+}
+function parseTiff(v,t){
+  const le=v.getUint16(t)===0x4949,u16=o=>v.getUint16(o,le),u32=o=>v.getUint32(o,le);
+  const ifd=o=>{const n=u16(o),m={};for(let i=0;i<n;i++){const e=o+2+i*12;m[u16(e)]={count:u32(e+4),off:e+8};}return m;};
+  const ascii=e=>{const p=e.count>4?t+u32(e.off):e.off;let s='';for(let i=0;i<e.count-1;i++)s+=String.fromCharCode(v.getUint8(p+i));return s;};
+  const rats=e=>{const p=t+u32(e.off),r=[];for(let i=0;i<e.count;i++){const d=u32(p+i*8+4);r.push(d?u32(p+i*8)/d:0);}return r;};
+  const i0=ifd(t+u32(t+4)),out={};
+  if(i0[0x8769]){const ex=ifd(t+u32(i0[0x8769].off));if(ex[0x9003])out.time=ascii(ex[0x9003]);}
+  if(i0[0x8825]){
+    const g=ifd(t+u32(i0[0x8825].off));
+    if(g[1]&&g[2]&&g[3]&&g[4]){
+      const la=rats(g[2]),lo=rats(g[4]);
+      let lat=la[0]+la[1]/60+la[2]/3600,lon=lo[0]+lo[1]/60+lo[2]/3600;
+      if(ascii(g[1])==='S')lat=-lat;if(ascii(g[3])==='W')lon=-lon;
+      if(isFinite(lat)&&isFinite(lon)&&(lat||lon)){out.lat=lat;out.lon=lon;}
+    }
+  }
+  return out;
+}
+
+/* Resumen por bloque: fruta visible por árbol, variabilidad y tamaño de muestra. */
+function summarizeCaps(caps){
+  const trees=new Map();
+  for(const r of caps){
+    const k=[r.predio,r.bloque,r.hilera,r.arbol].map(s=>String(s||'').trim()).join('|');
+    let t=trees.get(k);
+    if(!t){t={predio:String(r.predio||'').trim(),bloque:String(r.bloque||'').trim(),n:0,fotos:0};trees.set(k,t);}
+    t.n+=r.count;t.fotos++;
+  }
+  const blocks=new Map();
+  for(const t of trees.values()){
+    const bk=(t.predio?t.predio+' · ':'')+(t.bloque||'sin bloque');
+    let b=blocks.get(bk);if(!b){b={name:bk,vals:[],fotos:0};blocks.set(bk,b);}
+    b.vals.push(t.n);b.fotos+=t.fotos;
+  }
+  const rows=[...blocks.values()].map(b=>{
+    const n=b.vals.length,mean=b.vals.reduce((a,c)=>a+c,0)/n;
+    const sd=n>1?Math.sqrt(b.vals.reduce((a,c)=>a+(c-mean)**2,0)/(n-1)):null;
+    const cv=sd!==null&&mean>0?sd/mean:null;
+    const need=cv!==null?Math.max(2,Math.ceil((1.96*cv/0.10)**2)):null;
+    return {name:b.name,trees:n,fotos:b.fotos,mean,sd,cv,need};
+  }).sort((a,b)=>a.name.localeCompare(b.name,'es',{numeric:true}));
+  let sr=0,sc=0,nr=0;
+  for(const r of caps){
+    const real=Number(r.real);
+    if(r.real!==null&&r.real!==undefined&&r.real!==''&&real>0&&r.count>0){sr+=real;sc+=r.count;nr++;}
+  }
+  return {trees:trees.size,rows,factor:sc>0?sr/sc:null,nCal:nr};
+}
+/*PURE_END*/
+
+(function(){
+'use strict';
+const $=(s,r=document)=>r.querySelector(s);
+const $$=(s,r=document)=>[...r.querySelectorAll(s)];
+const MAXSIDE=1920, AUTO='#00d4ff', MAN='#ffe14d';
+const esc=s=>String(s??'').replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
+const uid=()=>Date.now().toString(36)+Math.random().toString(36).slice(2,7);
+const fmt=(n,d=0)=>n==null||!isFinite(n)?'—':n.toLocaleString('es-CL',{minimumFractionDigits:d,maximumFractionDigits:d});
+const ls={get(k,d){try{const v=localStorage.getItem(k);return v===null?d:JSON.parse(v);}catch(e){return d;}},set(k,v){try{localStorage.setItem(k,JSON.stringify(v));}catch(e){}}};
+
+const S={tab:'cap',caps:[],cur:null,zoom:1,undo:[],model:null,modelSize:640,modelMeta:null,lastExport:0,memOnly:false,showBoxes:true};
+let toastT;
+function toast(m){const t=$('#toast');t.textContent=m;t.hidden=false;clearTimeout(toastT);toastT=setTimeout(()=>{t.hidden=true;},2800);}
+
+/* ---------- Almacenamiento local (IndexedDB) ---------- */
+let _db=null;const mem={caps:new Map(),meta:new Map()};
+function openDb(){return new Promise((res,rej)=>{
+  if(!window.indexedDB)return rej(new Error('sin indexedDB'));
+  let r;try{r=indexedDB.open('contacitricos',1);}catch(e){return rej(e);}
+  r.onupgradeneeded=()=>{const d=r.result;d.createObjectStore('caps',{keyPath:'id'});d.createObjectStore('meta');};
+  r.onsuccess=()=>res(r.result);r.onerror=()=>rej(r.error);r.onblocked=()=>rej(new Error('bloqueado'));
+});}
+function tx(store,mode,fn){return new Promise((res,rej)=>{
+  const t=_db.transaction(store,mode),o=t.objectStore(store),r=fn(o);
+  t.oncomplete=()=>res(r&&r.result);t.onerror=()=>rej(t.error);t.onabort=()=>rej(t.error);
+});}
+const dbAll=()=>S.memOnly?Promise.resolve([...mem.caps.values()]):tx('caps','readonly',o=>o.getAll());
+const dbPut=r=>S.memOnly?Promise.resolve(void mem.caps.set(r.id,r)):tx('caps','readwrite',o=>o.put(r));
+const dbDel=id=>S.memOnly?Promise.resolve(void mem.caps.delete(id)):tx('caps','readwrite',o=>o.delete(id));
+const metaGet=k=>S.memOnly?Promise.resolve(mem.meta.get(k)):tx('meta','readonly',o=>o.get(k));
+const metaSet=(k,v)=>S.memOnly?Promise.resolve(void mem.meta.set(k,v)):tx('meta','readwrite',o=>o.put(v,k));
+
+/* ---------- Contexto del árbol ---------- */
+const CTX=['Predio','Bloque','Hilera','Arbol','Lado','Var'];
+function readCtx(){return {predio:$('#fPredio').value.trim(),bloque:$('#fBloque').value.trim(),hilera:$('#fHilera').value.trim(),arbol:$('#fArbol').value.trim(),lado:$('#fLado').value,variedad:$('#fVar').value};}
+function writeCtx(c){$('#fPredio').value=c.predio||'';$('#fBloque').value=c.bloque||'';$('#fHilera').value=c.hilera||'';$('#fArbol').value=c.arbol||'';if(c.lado)$('#fLado').value=c.lado;if(c.variedad)$('#fVar').value=c.variedad;}
+function persistCtx(){ls.set('cc.ctx',readCtx());}
+function advance(){
+  if($('#fLado').value==='A'){$('#fLado').value='B';}
+  else{$('#fLado').value='A';const a=$('#fArbol').value.trim();if(/^\d+$/.test(a))$('#fArbol').value=String(+a+1);}
+  persistCtx();
+}
+
+/* ---------- Pestañas y chips ---------- */
+function setTab(t){
+  S.tab=t;
+  for(const k of ['cap','lib','sum','mod'])$('#v-'+k).hidden=k!==t;
+  $$('#tabs button').forEach(b=>b.setAttribute('aria-selected',String(b.dataset.tab===t)));
+  if(t==='lib')renderLib();if(t==='sum')renderSummary();if(t==='mod')renderModel();
+  window.scrollTo(0,0);
+}
+function pending(){return S.caps.filter(r=>r.updated>S.lastExport).length;}
+function renderChips(){
+  const c=[];
+  c.push(navigator.onLine?'<span class="chip ok">En línea</span>':'<span class="chip warn">Sin conexión</span>');
+  if(S.memOnly)c.push('<span class="chip bad">Sin almacenamiento: exporta antes de cerrar</span>');
+  const p=pending();
+  if(p)c.push(`<span class="chip warn" id="chipPend">${p} sin exportar</span>`);
+  $('#chips').innerHTML=c.join('');
+  $('#tabN').textContent=S.caps.length;
+  const cp=$('#chipPend');if(cp)cp.onclick=()=>setTab('sum');
+}
+
+/* ---------- Foto y lienzo ---------- */
+function loadImg(file){return new Promise((res,rej)=>{const u=URL.createObjectURL(file),i=new Image();i.onload=()=>{URL.revokeObjectURL(u);res(i);};i.onerror=()=>rej(new Error('imagen no legible'));i.src=u;});}
+async function toBase(src){
+  let bmp;
+  try{bmp=await createImageBitmap(src,{imageOrientation:'from-image'});}catch(e){bmp=await loadImg(src);}
+  const w0=bmp.width,h0=bmp.height,sc=Math.min(1,MAXSIDE/Math.max(w0,h0));
+  const w=Math.round(w0*sc),h=Math.round(h0*sc);
+  const base=document.createElement('canvas');base.width=w;base.height=h;
+  base.getContext('2d').drawImage(bmp,0,0,w,h);
+  if(bmp.close)bmp.close();
+  return base;
+}
+function makeThumb(base){
+  const c=document.createElement('canvas'),k=160/Math.max(base.width,base.height);
+  c.width=Math.round(base.width*k);c.height=Math.round(base.height*k);
+  c.getContext('2d').drawImage(base,0,0,c.width,c.height);
+  return c.toDataURL('image/jpeg',.7);
+}
+async function openFile(file){
+  if(!file)return;
+  toast('Procesando foto…');
+  try{
+    let exif={};try{exif=readExif(await file.slice(0,131072).arrayBuffer());}catch(e){}
+    const base=await toBase(file);
+    const blob=await new Promise(r=>base.toBlob(r,'image/jpeg',.88));
+    S.cur={id:null,created:null,base,blob,w:base.width,h:base.height,boxes:[],autoTotal:0,autoRemoved:0,manualAdded:0,
+      lat:exif.lat??null,lon:exif.lon??null,shot:exif.time||null,thumb:null};
+    S.undo=[];$('#fReal').value='';
+    showEditor();
+  }catch(e){toast('No se pudo abrir la foto: '+e.message);}
+}
+function showEditor(){
+  $('#editor').hidden=false;$('#empty').hidden=true;
+  const p=S.cur;
+  $('#pct').value=ls.get('cc.pct',7);$('#pctOut').textContent=$('#pct').value+'%';
+  setZoom(1);
+  $('#geoLine').textContent=p.lat!=null?`GPS de la foto: ${p.lat.toFixed(6)}, ${p.lon.toFixed(6)}`:'La foto no trae coordenadas GPS.';
+  $('#btnSave').textContent=p.id?'Actualizar captura':'Guardar captura';
+  draw();updateCount();
+  $('#editor').scrollIntoView({block:'start'});
+}
+function closeEditor(){S.cur=null;S.undo=[];$('#editor').hidden=true;$('#empty').hidden=false;}
+function boxSize(){const p=S.cur;return Math.min(p.w,p.h)*(+$('#pct').value)/100;}
+function draw(){
+  const p=S.cur;if(!p)return;
+  const cv=$('#cv');
+  if(cv.width!==p.w||cv.height!==p.h){cv.width=p.w;cv.height=p.h;}
+  const x=cv.getContext('2d');x.drawImage(p.base,0,0);
+  if(!S.showBoxes)return;
+  const lw=Math.max(2,Math.round(p.w/380));
+  for(const pass of [0,1])for(const b of p.boxes){
+    x.lineWidth=pass?lw:lw+2;x.strokeStyle=pass?(b.src==='auto'?AUTO:MAN):'rgba(0,0,0,.75)';
+    x.strokeRect(b.cx-b.w/2,b.cy-b.h/2,b.w,b.h);
+  }
+}
+function updateCount(){
+  const p=S.cur;if(!p)return;
+  const a=p.boxes.filter(b=>b.src==='auto').length;
+  $('#count').textContent=p.boxes.length;$('#cAuto').textContent=a;$('#cMan').textContent=p.boxes.length-a;
+}
+function snap(){const p=S.cur;return JSON.stringify({b:p.boxes,r:p.autoRemoved,m:p.manualAdded,t:p.autoTotal});}
+function pushUndo(){S.undo.push(snap());if(S.undo.length>40)S.undo.shift();}
+function setZoom(z){
+  S.zoom=z;$('#cv').style.width=(z*100)+'%';
+  $$('.seg button').forEach(b=>b.setAttribute('aria-pressed',String(+b.dataset.z===z)));
+}
+$('#cv').addEventListener('click',e=>{
+  const p=S.cur;if(!p)return;
+  const cv=$('#cv'),r=cv.getBoundingClientRect();
+  const x=(e.clientX-r.left)*cv.width/r.width,y=(e.clientY-r.top)*cv.height/r.height;
+  let hit=-1,best=Infinity;
+  p.boxes.forEach((b,i)=>{
+    if(Math.abs(x-b.cx)<=b.w/2&&Math.abs(y-b.cy)<=b.h/2){const d=(x-b.cx)**2+(y-b.cy)**2;if(d<best){best=d;hit=i;}}
+  });
+  pushUndo();
+  if(hit>=0){
+    const b=p.boxes[hit];
+    if(b.src==='auto')p.autoRemoved++;else if(p.manualAdded>0)p.manualAdded--;
+    p.boxes.splice(hit,1);
+  }else{
+    const s=boxSize();p.boxes.push({cx:x,cy:y,w:s,h:s,src:'man'});
+    if(p.autoTotal>0)p.manualAdded++;
+  }
+  draw();updateCount();
+});
+$('#pct').addEventListener('input',()=>{
+  const v=+$('#pct').value;$('#pctOut').textContent=v+'%';ls.set('cc.pct',v);
+  const p=S.cur;if(!p)return;
+  const s=boxSize();for(const b of p.boxes)if(b.src==='man'){b.w=s;b.h=s;}
+  draw();
+});
+$('#showBoxes').addEventListener('change',e=>{S.showBoxes=e.target.checked;draw();});
+$$('.seg button').forEach(b=>b.addEventListener('click',()=>setZoom(+b.dataset.z)));
+$('#btnUndo').addEventListener('click',()=>{
+  const p=S.cur;if(!p||!S.undo.length)return;
+  const o=JSON.parse(S.undo.pop());p.boxes=o.b;p.autoRemoved=o.r;p.manualAdded=o.m;p.autoTotal=o.t;draw();updateCount();
+});
+let clearArmed=false;
+$('#btnClear').addEventListener('click',e=>{
+  const p=S.cur;if(!p)return;const btn=e.currentTarget;
+  if(!clearArmed){clearArmed=true;btn.textContent='¿Borrar todo?';setTimeout(()=>{clearArmed=false;btn.textContent='Borrar todo';},2500);return;}
+  clearArmed=false;btn.textContent='Borrar todo';pushUndo();p.boxes=[];p.autoTotal=0;p.autoRemoved=0;p.manualAdded=0;draw();updateCount();
+});
+$('#btnCancel').addEventListener('click',closeEditor);
+
+/* ---------- Asistentes de etiquetado ---------- */
+function applyAuto(list){
+  const p=S.cur;pushUndo();
+  p.boxes=p.boxes.filter(b=>b.src!=='auto');
+  const man=p.boxes;let added=0;
+  for(const k of list){
+    if(man.some(b=>Math.abs(k.cx-b.cx)<=b.w/2&&Math.abs(k.cy-b.cy)<=b.h/2))continue;
+    p.boxes.push({cx:k.cx,cy:k.cy,w:k.w,h:k.h,src:'auto'});added++;
+  }
+  p.autoTotal=added;p.autoRemoved=0;p.manualAdded=0;
+  draw();updateCount();return added;
+}
+$('#btnColor').addEventListener('click',async()=>{
+  const p=S.cur;if(!p)return;
+  const btn=$('#btnColor');btn.disabled=true;
+  try{
+    await new Promise(r=>setTimeout(r,20));
+    const k=Math.min(1,480/Math.max(p.w,p.h)),sw=Math.round(p.w*k),sh=Math.round(p.h*k);
+    const c=document.createElement('canvas');c.width=sw;c.height=sh;
+    const x=c.getContext('2d',{willReadFrequently:true});x.drawImage(p.base,0,0,sw,sh);
+    const res=colorBlobs(x.getImageData(0,0,sw,sh).data,sw,sh,$('#cPreset').value);
+    const f=p.w/sw;
+    const n=applyAuto(res.boxes.map(b=>({cx:b.cx*f,cy:b.cy*f,w:b.w*f,h:b.h*f})));
+    toast(`${n} propuestas${res.skipped?`, ${res.skipped} racimos o manchas omitidos`:''}. Revisa y corrige.`);
+  }catch(e){toast('Error en el pre-etiquetado: '+e.message);}
+  btn.disabled=false;
+});
+
+/* ---------- Modelo TensorFlow.js ---------- */
+let _tfp=null;
+function loadTf(){
+  if(window.tf)return Promise.resolve();
+  if(_tfp)return _tfp;
+  _tfp=new Promise((res,rej)=>{
+    const s=document.createElement('script');
+    s.src='tf.min.js';
+    s.onload=()=>res();
+    s.onerror=()=>{_tfp=null;rej(new Error('No se pudo cargar TensorFlow.js.'));};
+    document.head.appendChild(s);
+  });
+  return _tfp;
+}
+function afterModel(m){
+  S.model=m;
+  const sh=m.inputs&&m.inputs[0]&&m.inputs[0].shape;
+  S.modelSize=sh&&sh[1]>0?sh[1]:640;
+  $('#btnDetect').disabled=false;
+  $('#detectHint').textContent=`Modelo listo, entrada ${S.modelSize}×${S.modelSize}. El primer uso es más lento.`;
+  renderModel();
+}
+async function loadSavedModel(){
+  try{await loadTf();await tf.ready();afterModel(await tf.loadGraphModel('indexeddb://citrus-model'));}
+  catch(e){$('#detectHint').textContent='Modelo guardado, pero no se pudo cargar ahora: '+e.message;}
+}
+$('#modFiles').addEventListener('change',async e=>{
+  const files=[...e.target.files];e.target.value='';
+  const json=files.find(f=>/\.json$/i.test(f.name)),bins=files.filter(f=>/\.bin$/i.test(f.name));
+  if(!json||!bins.length){toast('Selecciona model.json y todos los archivos .bin juntos.');return;}
+  $('#modStatus').textContent='Cargando modelo…';
+  try{
+    await loadTf();await tf.ready();
+    const m=await tf.loadGraphModel(tf.io.browserFiles([json,...bins]));
+    let saved=true;try{await m.save('indexeddb://citrus-model');}catch(err){saved=false;}
+    S.modelMeta={name:json.name,savedAt:Date.now(),saved};
+    try{await metaSet('model',S.modelMeta);}catch(err){}
+    afterModel(m);toast(saved?'Modelo cargado y guardado en el dispositivo.':'Modelo cargado, pero no se pudo guardar.');
+  }catch(err){$('#modStatus').textContent='No se pudo cargar el modelo: '+err.message;}
+});
+$('#btnModDel').addEventListener('click',async()=>{
+  try{if(window.tf)await tf.io.removeModel('indexeddb://citrus-model');}catch(e){}
+  S.model=null;S.modelMeta=null;try{await metaSet('model',null);}catch(e){}
+  $('#btnDetect').disabled=true;$('#detectHint').textContent='Carga un modelo en la pestaña Modelo para activar este botón.';
+  renderModel();
+});
+$('#mConf').addEventListener('input',e=>{$('#confOut').textContent=(+e.target.value).toFixed(2);});
+$('#mIou').addEventListener('input',e=>{$('#iouOut').textContent=(+e.target.value).toFixed(2);});
+$('#btnDetect').addEventListener('click',async()=>{
+  const p=S.cur;if(!p||!S.model)return;
+  const btn=$('#btnDetect');btn.disabled=true;btn.textContent='Detectando…';
+  try{
+    const conf=+$('#mConf').value,iou=+$('#mIou').value,tiles=+$('#mTiles').value,sz=S.modelSize||640;
+    const regs=[];
+    if(tiles===1)regs.push([0,0,p.w,p.h]);
+    else{const tw=Math.ceil(p.w*.58),th=Math.ceil(p.h*.58);for(const y of [0,p.h-th])for(const x of [0,p.w-tw])regs.push([x,y,tw,th]);}
+    const cand=[];
+    const sq=document.createElement('canvas');sq.width=sq.height=sz;
+    const sx=sq.getContext('2d',{willReadFrequently:true});
+    for(const [rx,ry,rw,rh] of regs){
+      const sc=Math.min(sz/rw,sz/rh),dw=rw*sc,dh=rh*sc,dx=(sz-dw)/2,dy=(sz-dh)/2;
+      sx.fillStyle='rgb(114,114,114)';sx.fillRect(0,0,sz,sz);sx.drawImage(p.base,rx,ry,rw,rh,dx,dy,dw,dh);
+      const inp=tf.tidy(()=>tf.browser.fromPixels(sq).toFloat().div(255).expandDims(0));
+      let out=await S.model.executeAsync(inp);inp.dispose();
+      if(Array.isArray(out)){const o0=out[0];out.slice(1).forEach(t=>t.dispose());out=o0;}
+      const shp=out.shape,data=await out.data();out.dispose();
+      const cf=shp[1]<shp[2],C=cf?shp[1]:shp[2],N=cf?shp[2]:shp[1];
+      const g=(i,c)=>cf?data[c*N+i]:data[i*C+c];
+      const tmp=[];let mx=0;
+      for(let i=0;i<N;i++){
+        let s=0;for(let c=4;c<C;c++){const v=g(i,c);if(v>s)s=v;}
+        if(s<conf)continue;
+        const a=g(i,0),b=g(i,1),w=g(i,2),h=g(i,3);
+        if(a>mx)mx=a;if(w>mx)mx=w;tmp.push([a,b,w,h,s]);
+      }
+      const k=mx<=1.5?sz:1;
+      for(const [a,b,w,h,s] of tmp){
+        const cx=(a*k-dx)/sc+rx,cy=(b*k-dy)/sc+ry,bw=w*k/sc,bh=h*k/sc;
+        cand.push([cy-bh/2,cx-bw/2,cy+bh/2,cx+bw/2,s]);
+      }
+      await new Promise(r=>setTimeout(r,0));
+    }
+    let kept=[];
+    if(cand.length){
+      const bt=tf.tensor2d(cand.map(c=>c.slice(0,4))),stt=tf.tensor1d(cand.map(c=>c[4]));
+      const idx=await tf.image.nonMaxSuppressionAsync(bt,stt,400,iou,conf);
+      const ia=await idx.data();bt.dispose();stt.dispose();idx.dispose();
+      kept=[...ia].map(i=>cand[i]);
+    }
+    const n=applyAuto(kept.map(k=>({cx:(k[1]+k[3])/2,cy:(k[0]+k[2])/2,w:k[3]-k[1],h:k[2]-k[0]})));
+    toast(`${n} detecciones. Corrige tocando la foto.`);
+  }catch(e){toast('Error al detectar: '+e.message);}
+  btn.textContent='Detectar con modelo';btn.disabled=!S.model;
+});
+
+function renderModel(){
+  const st=$('#modStatus');
+  if(S.model)st.textContent=`Modelo activo: ${S.modelMeta?S.modelMeta.name:'guardado'} · entrada ${S.modelSize} px · motor ${window.tf?tf.getBackend():'—'}`;
+  else if(S.modelMeta)st.textContent='Hay un modelo guardado. Se cargará al tener conexión.';
+  else st.textContent='Sin modelo. Mientras tanto, etiqueta fotos para construir el dataset.';
+  $('#btnModDel').hidden=!(S.model||S.modelMeta);
+  const ev=S.caps.filter(r=>r.autoTotal>0);
+  const a=ev.reduce((s,r)=>s+r.autoTotal,0),rm=ev.reduce((s,r)=>s+r.autoRemoved,0),man=ev.reduce((s,r)=>s+r.manualAdded,0);
+  const kept=a-rm,P=a?kept/a:null,R=(kept+man)?kept/(kept+man):null;
+  $('#evalKpis').innerHTML=`<div class="kpi"><b>${P==null?'—':Math.round(P*100)+'%'}</b><span>Precisión</span></div>
+   <div class="kpi"><b>${R==null?'—':Math.round(R*100)+'%'}</b><span>Cobertura</span></div>
+   <div class="kpi"><b>${ev.length}</b><span>Fotos con propuesta</span></div>`;
+  $('#evalHint').textContent=ev.length?'Precisión: propuestas que conservaste. Cobertura: frutos que el asistente encontró sobre los que tuviste que agregar a mano.':'Aparecerá cuando guardes fotos corregidas después de usar un asistente.';
+}
+$('#btnCopy').addEventListener('click',async()=>{
+  const t=$('#colab').textContent;
+  try{await navigator.clipboard.writeText(t);toast('Código copiado');}
+  catch(e){const r=document.createRange();r.selectNodeContents($('#colab'));const s=getSelection();s.removeAllRanges();s.addRange(r);toast('Código seleccionado, cópialo manualmente');}
+});
+
+/* ---------- Guardar y biblioteca ---------- */
+async function saveCur(){
+  const p=S.cur;if(!p)return;
+  const c=readCtx(),realTxt=$('#fReal').value.trim();
+  const rec={
+    id:p.id||uid(),created:p.created||Date.now(),updated:Date.now(),...c,
+    count:p.boxes.length,
+    boxes:p.boxes.map(b=>({cx:+b.cx.toFixed(1),cy:+b.cy.toFixed(1),w:+b.w.toFixed(1),h:+b.h.toFixed(1),src:b.src})),
+    w:p.w,h:p.h,blob:p.blob,thumb:p.thumb||makeThumb(p.base),lat:p.lat,lon:p.lon,shot:p.shot,
+    real:realTxt===''?null:Number(realTxt),autoTotal:p.autoTotal,autoRemoved:p.autoRemoved,manualAdded:p.manualAdded
+  };
+  try{await dbPut(rec);}catch(e){toast('No se pudo guardar: almacenamiento lleno o bloqueado.');return;}
+  const i=S.caps.findIndex(r=>r.id===rec.id);
+  if(i>=0)S.caps[i]=rec;else{S.caps.push(rec);advance();}
+  closeEditor();renderChips();toast(`Guardada: ${rec.count} frutos`);
+  window.scrollTo(0,0);
+}
+$('#btnSave').addEventListener('click',saveCur);
+function label(r){
+  const p=[];if(r.bloque)p.push('Bl. '+r.bloque);if(r.hilera)p.push('H '+r.hilera);if(r.arbol)p.push('Árb. '+r.arbol);p.push('Cara '+(r.lado||'—'));
+  return p.join(' · ');
+}
+function renderLib(){
+  const items=[...S.caps].sort((a,b)=>b.created-a.created);
+  $('#libEmpty').hidden=items.length>0;
+  $('#libList').innerHTML=items.map(r=>`<li class="item" data-id="${esc(r.id)}">
+    <button class="open" type="button" data-act="open"><img alt="" src="${esc(r.thumb)}"><span><span class="t">${esc(label(r))}</span><br><span class="s">${esc(new Date(r.created).toLocaleString('es-CL',{day:'2-digit',month:'2-digit',hour:'2-digit',minute:'2-digit'}))} · ${esc(r.variedad||'')}</span></span><span class="n">${r.count}</span></button>
+    <button class="btn danger sm" type="button" data-act="del" style="align-self:stretch">Borrar</button></li>`).join('');
+}
+$('#libList').addEventListener('click',async e=>{
+  const b=e.target.closest('button[data-act]');if(!b)return;
+  const id=b.closest('li').dataset.id,r=S.caps.find(x=>x.id===id);if(!r)return;
+  if(b.dataset.act==='open'){
+    try{
+      const base=await toBase(r.blob);
+      writeCtx(r);
+      S.cur={id:r.id,created:r.created,base,blob:r.blob,w:base.width,h:base.height,boxes:r.boxes.map(x=>({...x})),autoTotal:r.autoTotal||0,autoRemoved:r.autoRemoved||0,manualAdded:r.manualAdded||0,lat:r.lat,lon:r.lon,shot:r.shot,thumb:r.thumb};
+      S.undo=[];$('#fReal').value=r.real==null?'':r.real;
+      setTab('cap');showEditor();
+    }catch(err){toast('No se pudo abrir la captura.');}
+  }else{
+    if(b.dataset.armed!=='1'){b.dataset.armed='1';b.textContent='¿Seguro?';setTimeout(()=>{b.dataset.armed='';b.textContent='Borrar';},2500);return;}
+    try{await dbDel(id);S.caps=S.caps.filter(x=>x.id!==id);renderLib();renderChips();}catch(err){toast('No se pudo borrar.');}
+  }
+});
+
+/* ---------- Resumen y exportación ---------- */
+function yieldInputs(){return {arb:+$('#yArb').value||0,peso:+$('#yPeso').value||0,fac:+$('#yFac').value||0};}
+function renderSummary(){
+  const s=summarizeCaps(S.caps);
+  const total=S.caps.reduce((a,r)=>a+r.count,0);
+  $('#kpis').innerHTML=`<div class="kpi"><b>${S.caps.length}</b><span>Capturas</span></div><div class="kpi"><b>${s.trees}</b><span>Árboles</span></div><div class="kpi"><b>${fmt(total)}</b><span>Frutos marcados</span></div>`;
+  $('#tblBlocks').innerHTML='<thead><tr><th>Bloque</th><th>Árb.</th><th>Fotos</th><th>Fr./árbol</th><th>CV</th><th>n ±10%</th></tr></thead><tbody>'+
+    (s.rows.length?s.rows.map(r=>`<tr><td>${esc(r.name)}</td><td>${r.trees}</td><td>${r.fotos}</td><td>${fmt(r.mean,1)}</td><td>${r.cv==null?'—':Math.round(r.cv*100)+'%'}</td><td>${r.need==null?'—':r.need}</td></tr>`).join(''):'<tr><td colspan="6">Sin datos todavía</td></tr>')+'</tbody>';
+  const y=yieldInputs();
+  $('#calLine').innerHTML=s.factor?`Factor calibrado con ${s.nCal} caras con conteo real: <b class="mono">${s.factor.toFixed(2)}</b> <button class="btn sm" type="button" id="btnUseFac" style="margin-left:6px">Usar</button>`:'Sin conteos reales todavía. Ingrésalos al guardar capturas para calcular el factor de corrección.';
+  const bu=$('#btnUseFac');if(bu)bu.onclick=()=>{$('#yFac').value=s.factor.toFixed(2);ls.set('cc.yield',yieldInputs());renderSummary();};
+  $('#tblYield').innerHTML='<thead><tr><th>Bloque</th><th>Fr./árbol corr.</th><th>kg/árbol</th><th>t/ha</th></tr></thead><tbody>'+
+    (s.rows.length?s.rows.map(r=>{const fa=r.mean*y.fac,kg=fa*y.peso/1000;return `<tr><td>${esc(r.name)}</td><td>${fmt(fa,0)}</td><td>${fmt(kg,1)}</td><td>${fmt(kg*y.arb/1000,1)}</td></tr>`;}).join(''):'<tr><td colspan="4">Sin datos todavía</td></tr>')+'</tbody>';
+}
+for(const id of ['yArb','yPeso','yFac'])$('#'+id).addEventListener('input',()=>{ls.set('cc.yield',yieldInputs());renderSummary();});
+
+async function save(name,data){
+  let d=null;try{d=await window.claude.use('downloads');}catch(e){}
+  if(!d){
+    try{
+      const blob=data instanceof Blob?data:new Blob([data]);
+      const u=URL.createObjectURL(blob),a=document.createElement('a');
+      a.href=u;a.download=name;document.body.appendChild(a);a.click();a.remove();
+      setTimeout(()=>URL.revokeObjectURL(u),60000);
+      toast('Archivo enviado a Descargas: '+name);return true;
+    }catch(e){toast('No se pudo guardar el archivo.');return false;}
+  }
+  try{await d.save({filename:name,data});return true;}
+  catch(e){if(e&&e.code!=='declined')toast('No se pudo guardar el archivo ('+(e.code||'error')+').');return false;}
+}
+const stamp=()=>new Date().toISOString().slice(0,10);
+async function markExported(){S.lastExport=Date.now();try{await metaSet('lastExport',S.lastExport);}catch(e){}renderChips();}
+$('#btnCsv').addEventListener('click',async()=>{
+  if(!S.caps.length){toast('No hay capturas para exportar.');return;}
+  const H=['id','fecha','predio','bloque','hilera','arbol','cara','variedad','frutos','conteo_real','propuestas','propuestas_borradas','agregadas_a_mano','lat','lon','ancho_px','alto_px'];
+  const q=v=>{const s=String(v??'');return /[;"\n]/.test(s)?'"'+s.replace(/"/g,'""')+'"':s;};
+  const rows=[...S.caps].sort((a,b)=>a.created-b.created).map(r=>[r.id,new Date(r.created).toISOString(),r.predio,r.bloque,r.hilera,r.arbol,r.lado,r.variedad,r.count,r.real,r.autoTotal,r.autoRemoved,r.manualAdded,r.lat,r.lon,r.w,r.h].map(q).join(';'));
+  const ok=await save(`capturas-citricos-${stamp()}.csv`,new Blob(['﻿'+H.join(';')+'\n'+rows.join('\n')],{type:'text/csv'}));
+  if(ok)markExported();
+});
+function hash(s){let h=0;for(let i=0;i<s.length;i++)h=(h*31+s.charCodeAt(i))>>>0;return h;}
+$('#btnZip').addEventListener('click',async()=>{
+  const use=S.caps.filter(r=>r.count>0);
+  if(!use.length){toast('Necesitas al menos una foto con cajas.');return;}
+  const btn=$('#btnZip');btn.disabled=true;btn.textContent='Preparando…';
+  try{
+    const enc=new TextEncoder(),files=[];
+    const valSet=new Set(use.filter(r=>hash([r.predio,r.bloque,r.hilera,r.arbol].join('|'))%5===0).map(r=>r.id));
+    const hasVal=valSet.size>0&&valSet.size<use.length;
+    for(const r of use){
+      const sp=hasVal&&valSet.has(r.id)?'val':'train',nm=r.id;
+      files.push({name:`images/${sp}/${nm}.jpg`,data:new Uint8Array(await r.blob.arrayBuffer())});
+      const lines=[];
+      for(const b of r.boxes){
+        const x1=Math.max(0,b.cx-b.w/2),y1=Math.max(0,b.cy-b.h/2),x2=Math.min(r.w,b.cx+b.w/2),y2=Math.min(r.h,b.cy+b.h/2);
+        if(x2-x1<2||y2-y1<2)continue;
+        lines.push(`0 ${((x1+x2)/2/r.w).toFixed(6)} ${((y1+y2)/2/r.h).toFixed(6)} ${((x2-x1)/r.w).toFixed(6)} ${((y2-y1)/r.h).toFixed(6)}`);
+      }
+      files.push({name:`labels/${sp}/${nm}.txt`,data:enc.encode(lines.join('\n')+'\n')});
+    }
+    files.push({name:'data.yaml',data:enc.encode(`path: .\ntrain: images/train\nval: images/${hasVal?'val':'train'}\nnames:\n  0: citrus\n`)});
+    const ok=await save(`dataset-citricos-${stamp()}.zip`,makeZip(files));
+    if(ok)markExported();
+  }catch(e){toast('No se pudo armar el dataset: '+e.message);}
+  btn.disabled=false;btn.textContent='Dataset YOLO (.zip)';
+});
+
+/* ---------- Arranque ---------- */
+$('#fileCam').addEventListener('change',e=>{const f=e.target.files[0];e.target.value='';openFile(f);});
+$('#fileGal').addEventListener('change',e=>{const f=e.target.files[0];e.target.value='';openFile(f);});
+$$('#tabs button').forEach(b=>b.addEventListener('click',()=>setTab(b.dataset.tab)));
+for(const id of ['fPredio','fBloque','fHilera','fArbol','fLado','fVar'])$('#'+id).addEventListener('input',persistCtx);
+window.addEventListener('online',renderChips);window.addEventListener('offline',renderChips);
+
+(async function init(){
+  writeCtx(ls.get('cc.ctx',{}));
+  const y=ls.get('cc.yield',{arb:650,peso:180,fac:1});
+  $('#yArb').value=y.arb;$('#yPeso').value=y.peso;$('#yFac').value=y.fac;
+  try{_db=await openDb();}catch(e){S.memOnly=true;}
+  try{S.caps=await dbAll()||[];}catch(e){S.memOnly=true;S.caps=[];}
+  try{S.lastExport=(await metaGet('lastExport'))||0;S.modelMeta=(await metaGet('model'))||null;}catch(e){}
+  renderChips();renderModel();
+  try{if(navigator.storage&&navigator.storage.persist)navigator.storage.persist();}catch(e){}
+  try{if('serviceWorker' in navigator&&location.protocol!=='file:')navigator.serviceWorker.register('sw.js');}catch(e){}
+  if(S.modelMeta)loadSavedModel();
+})();
+})();
+</script>
