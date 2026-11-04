@@ -1,5 +1,5 @@
 import React, { useRef, useState, useEffect, useCallback } from 'react';
-import { Camera, RefreshCw, Snowflake, Check, Play, AlertCircle } from 'lucide-react';
+import { Camera, CameraOff, RefreshCw, Snowflake, Check, Play, AlertCircle, Power } from 'lucide-react';
 import { colorDetector } from '../../services/vision/colorDetector';
 import { BoundingBox, HsvFilterParams, CaptureMetadata } from '../../types/citrus';
 
@@ -23,6 +23,7 @@ export const LiveCameraHUD: React.FC<LiveCameraHUDProps> = ({
   const animFrameIdRef = useRef<number | null>(null);
 
   const [isStreaming, setIsStreaming] = useState(false);
+  const [isManuallyOff, setIsManuallyOff] = useState(false);
   const [facingMode, setFacingMode] = useState<'environment' | 'user'>('environment');
   const [fps, setFps] = useState(0);
   const [liveCount, setLiveCount] = useState(0);
@@ -79,15 +80,34 @@ export const LiveCameraHUD: React.FC<LiveCameraHUDProps> = ({
       stream.getTracks().forEach(t => t.stop());
       videoRef.current.srcObject = null;
     }
+    if (canvasRef.current) {
+      const ctx = canvasRef.current.getContext('2d');
+      if (ctx) ctx.clearRect(0, 0, canvasRef.current.width, canvasRef.current.height);
+    }
     setIsStreaming(false);
+    setFps(0);
+    setLiveCount(0);
   }, []);
 
+  // Toggle Camera On/Off (Power)
+  const toggleCameraPower = useCallback(() => {
+    if (isStreaming) {
+      stopCamera();
+      setIsManuallyOff(true);
+    } else {
+      setIsManuallyOff(false);
+      startCamera();
+    }
+  }, [isStreaming, stopCamera, startCamera]);
+
   useEffect(() => {
-    startCamera();
+    if (!isManuallyOff) {
+      startCamera();
+    }
     return () => {
       stopCamera();
     };
-  }, [startCamera, stopCamera]);
+  }, [startCamera, stopCamera, isManuallyOff]);
 
   // Continuous Detection HUD Loop
   useEffect(() => {
@@ -266,16 +286,61 @@ export const LiveCameraHUD: React.FC<LiveCameraHUDProps> = ({
             </div>
           </div>
 
-          {/* Quick Orchard Label */}
-          <div className="px-3 py-1.5 rounded-lg bg-slate-950/80 backdrop-blur-md border border-slate-800 text-xs text-slate-300">
-            <span className="text-amber-400 font-semibold">{metadata.cuartel || 'Cuartel'}</span>
-            <span className="mx-1.5 text-slate-600">·</span>
-            <span>H:{metadata.hilera || '1'} A:{metadata.arbol || '1'}</span>
+          {/* Quick Orchard Label & Power Button */}
+          <div className="flex items-center gap-2 pointer-events-auto">
+            <div className="px-3 py-1.5 rounded-lg bg-slate-950/80 backdrop-blur-md border border-slate-800 text-xs text-slate-300">
+              <span className="text-amber-400 font-semibold">{metadata.cuartel || 'Cuartel'}</span>
+              <span className="mx-1.5 text-slate-600">·</span>
+              <span>H:{metadata.hilera || '1'} A:{metadata.arbol || '1'}</span>
+            </div>
+
+            {/* Top Power Toggle */}
+            <button
+              onClick={toggleCameraPower}
+              className={`px-3 py-1.5 rounded-lg backdrop-blur-md border text-xs font-semibold flex items-center gap-1.5 transition-all cursor-pointer ${
+                isStreaming
+                  ? 'bg-rose-500/15 border-rose-500/30 text-rose-300 hover:bg-rose-500/25'
+                  : 'bg-emerald-500/20 border-emerald-500/40 text-emerald-300 hover:bg-emerald-500/30'
+              }`}
+              title={isStreaming ? 'Apagar Cámara (Ahorro de Batería)' : 'Encender Cámara'}
+            >
+              {isStreaming ? (
+                <>
+                  <CameraOff className="w-3.5 h-3.5 text-rose-400" />
+                  <span className="hidden sm:inline">Apagar</span>
+                </>
+              ) : (
+                <>
+                  <Camera className="w-3.5 h-3.5 text-emerald-400" />
+                  <span>Encender</span>
+                </>
+              )}
+            </button>
           </div>
         </div>
 
+        {/* Standby Screen when Camera is Manually Off */}
+        {isManuallyOff && (
+          <div className="absolute inset-0 flex flex-col items-center justify-center p-6 bg-slate-950/95 z-20 text-center select-none">
+            <div className="w-16 h-16 rounded-2xl bg-slate-900 border border-slate-800 flex items-center justify-center mb-4 text-slate-400">
+              <CameraOff className="w-8 h-8 text-rose-400" />
+            </div>
+            <h3 className="text-lg font-bold text-white mb-1">Cámara Apagada</h3>
+            <p className="text-xs text-slate-400 max-w-xs mb-6">
+              El sensor de cámara y los algoritmos de detección están pausados para ahorrar batería del dispositivo en terreno.
+            </p>
+            <button
+              onClick={toggleCameraPower}
+              className="px-6 py-3 bg-amber-500 hover:bg-amber-400 text-slate-950 font-bold rounded-xl text-sm flex items-center gap-2 shadow-lg shadow-amber-500/20 active:scale-95 transition-all cursor-pointer"
+            >
+              <Camera className="w-4 h-4" />
+              <span>Encender Cámara</span>
+            </button>
+          </div>
+        )}
+
         {/* Fallback Camera Error / Permission Notice */}
-        {cameraError && (
+        {cameraError && !isManuallyOff && (
           <div className="absolute inset-0 flex items-center justify-center p-6 bg-slate-950/90 z-20">
             <div className="max-w-md w-full p-6 rounded-2xl bg-slate-900 border border-slate-800 text-center">
               <AlertCircle className="w-12 h-12 text-amber-400 mx-auto mb-4" />
@@ -302,12 +367,26 @@ export const LiveCameraHUD: React.FC<LiveCameraHUDProps> = ({
       </div>
 
       {/* Bottom Ergonomic Action Strip (Natural Thumb Zone) */}
-      <div className="relative z-10 w-full p-4 bg-gradient-to-t from-slate-950 via-slate-950/90 to-transparent flex items-center justify-around gap-4 max-w-lg mx-auto">
+      <div className="relative z-10 w-full p-4 bg-gradient-to-t from-slate-950 via-slate-950/90 to-transparent flex items-center justify-around gap-3 max-w-lg mx-auto">
         
+        {/* Power Button (Turn Camera Off/On) */}
+        <button
+          onClick={toggleCameraPower}
+          className={`w-12 h-12 rounded-full border flex items-center justify-center active:scale-95 transition-all cursor-pointer ${
+            isStreaming
+              ? 'bg-slate-900/90 hover:bg-slate-800 border-slate-700 text-rose-400 hover:border-rose-500/40'
+              : 'bg-emerald-600 hover:bg-emerald-500 border-emerald-500 text-white shadow-lg shadow-emerald-500/20'
+          }`}
+          title={isStreaming ? 'Apagar Cámara (Ahorro de Batería)' : 'Encender Cámara'}
+        >
+          {isStreaming ? <CameraOff className="w-5 h-5" /> : <Power className="w-5 h-5" />}
+        </button>
+
         {/* Switch Camera Button */}
         <button
           onClick={toggleCamera}
-          className="w-12 h-12 rounded-full bg-slate-900/90 hover:bg-slate-800 border border-slate-700 flex items-center justify-center text-slate-300 active:scale-95 transition-all cursor-pointer"
+          disabled={!isStreaming}
+          className="w-12 h-12 rounded-full bg-slate-900/90 hover:bg-slate-800 border border-slate-700 disabled:opacity-30 flex items-center justify-center text-slate-300 active:scale-95 transition-all cursor-pointer"
           title="Alternar Cámara Trasera / Frontal"
         >
           <RefreshCw className="w-5 h-5" />
@@ -316,7 +395,8 @@ export const LiveCameraHUD: React.FC<LiveCameraHUDProps> = ({
         {/* Primary Shutter Action: Freeze & Annotate */}
         <button
           onClick={handleFreeze}
-          className="h-16 px-6 rounded-2xl bg-amber-500 hover:bg-amber-400 text-slate-950 font-bold text-base flex items-center gap-3 shadow-lg shadow-amber-500/20 active:scale-95 transition-all cursor-pointer shrink-0"
+          disabled={!isStreaming}
+          className="h-16 px-6 rounded-2xl bg-amber-500 hover:bg-amber-400 disabled:opacity-40 text-slate-950 font-bold text-base flex items-center gap-3 shadow-lg shadow-amber-500/20 active:scale-95 transition-all cursor-pointer shrink-0"
         >
           <Snowflake className="w-6 h-6" />
           <span>Congelar & Anotar</span>
@@ -325,8 +405,8 @@ export const LiveCameraHUD: React.FC<LiveCameraHUDProps> = ({
         {/* Instant Quick Save */}
         <button
           onClick={handleQuickSave}
-          disabled={isProcessing}
-          className="w-12 h-12 rounded-full bg-emerald-600 hover:bg-emerald-500 text-white flex items-center justify-center shadow-md active:scale-95 transition-all cursor-pointer"
+          disabled={isProcessing || !isStreaming}
+          className="w-12 h-12 rounded-full bg-emerald-600 hover:bg-emerald-500 disabled:opacity-30 text-white flex items-center justify-center shadow-md active:scale-95 transition-all cursor-pointer"
           title="Guardado Rápido Directo"
         >
           <Check className="w-6 h-6" />
