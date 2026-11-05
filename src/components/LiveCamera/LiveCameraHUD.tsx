@@ -169,12 +169,27 @@ export const LiveCameraHUD: React.FC<LiveCameraHUDProps> = ({
               ctx.lineTo(bx + bw, by + corner);
               ctx.stroke();
 
-              // Label badge
-              ctx.fillStyle = 'rgba(15, 23, 42, 0.85)';
-              ctx.fillRect(bx, Math.max(0, by - 24), 70, 22);
-              ctx.fillStyle = '#f59e0b';
-              ctx.font = `600 ${Math.max(12, Math.round(vw * 0.016))}px 'JetBrains Mono', monospace`;
-              ctx.fillText(`${Math.round(b.confidence * 100)}%`, bx + 6, Math.max(16, by - 7));
+              // High-visibility label badge for mobile & outdoor daylight
+              const fontSize = Math.max(16, Math.round(vw * 0.034));
+              const badgeText = `${Math.round(b.confidence * 100)}%`;
+              ctx.font = `bold ${fontSize}px 'JetBrains Mono', monospace`;
+              const textMetrics = ctx.measureText(badgeText);
+              const padX = Math.round(fontSize * 0.4);
+              const padY = Math.round(fontSize * 0.25);
+              const badgeW = textMetrics.width + padX * 2;
+              const badgeH = fontSize + padY * 2;
+              const badgeY = Math.max(0, by - badgeH - 4);
+
+              // Badge background with dark border and high contrast
+              ctx.fillStyle = 'rgba(2, 6, 23, 0.90)';
+              ctx.fillRect(bx, badgeY, badgeW, badgeH);
+              ctx.strokeStyle = '#f59e0b';
+              ctx.lineWidth = Math.max(1.5, Math.round(vw * 0.002));
+              ctx.strokeRect(bx, badgeY, badgeW, badgeH);
+
+              // Text in amber with crisp contrast
+              ctx.fillStyle = '#fbbf24';
+              ctx.fillText(badgeText, bx + padX, badgeY + fontSize + (padY * 0.3));
             }
           }
 

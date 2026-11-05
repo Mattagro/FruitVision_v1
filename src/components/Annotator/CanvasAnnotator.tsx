@@ -135,11 +135,25 @@ export const CanvasAnnotator: React.FC<CanvasAnnotatorProps> = ({
         ctx.fillRect(bx, by, bw, bh);
       }
 
-      // Small label
-      ctx.fillStyle = isSelected ? '#38bdf8' : (b.colorHex || '#f59e0b');
-      ctx.font = `600 ${Math.max(13, Math.round(iw * 0.015))}px 'JetBrains Mono', monospace`;
+      // High-visibility label badge for mobile & desktop
+      const fontSize = Math.max(16, Math.round(iw * 0.032));
       const label = b.confidence ? `${Math.round(b.confidence * 100)}%` : 'Manual';
-      ctx.fillText(label, bx + 4, Math.max(16, by - 6));
+      ctx.font = `bold ${fontSize}px 'JetBrains Mono', monospace`;
+      const textMetrics = ctx.measureText(label);
+      const padX = Math.round(fontSize * 0.4);
+      const padY = Math.round(fontSize * 0.25);
+      const badgeW = textMetrics.width + padX * 2;
+      const badgeH = fontSize + padY * 2;
+      const badgeY = Math.max(0, by - badgeH - 4);
+
+      ctx.fillStyle = 'rgba(2, 6, 23, 0.90)';
+      ctx.fillRect(bx, badgeY, badgeW, badgeH);
+      ctx.strokeStyle = isSelected ? '#38bdf8' : (b.colorHex || '#f59e0b');
+      ctx.lineWidth = Math.max(1.5, Math.round(iw * 0.002));
+      ctx.strokeRect(bx, badgeY, badgeW, badgeH);
+
+      ctx.fillStyle = isSelected ? '#38bdf8' : '#fbbf24';
+      ctx.fillText(label, bx + padX, badgeY + fontSize + (padY * 0.3));
     });
   }, [boxes, selectedBoxId]);
 
