@@ -1,5 +1,5 @@
 import JSZip from 'jszip';
-import { CaptureRecord } from '../types/citrus';
+import { CaptureRecord, BoundingBox } from '../types/citrus';
 
 /**
  * Convert base64 DataURL to ArrayBuffer or Blob
@@ -205,4 +205,137 @@ export function triggerDownload(blob: Blob, filename: string) {
   a.click();
   document.body.removeChild(a);
   URL.revokeObjectURL(url);
+}
+
+/**
+ * Import images or a full YOLO dataset ZIP into CaptureRecords
+ */
+export async function importDatasetOrImages(
+  files: FileList | File[]
+): Promise<CaptureRecord[]> {
+  const fileArray = Array.from(files);
+  const results: CaptureRecord[] = [];
+
+  const zipFile = fileArray.find(f => f.name.toLowerCase().endsWith('.zip'));
+  if (zipFile) {
+    const zip = await JSZip.loadAsync(zipFile);
+    
+    // Find all image files in the zip
+    const imageEntries = Object.entries(zip.files).filter(([path, entry]) => {
+      if (entry.dir) return false;
+      const lower = path.toLowerCase();
+      return lower.endsWith('.jpg') || lower.endsWith('.jpeg') || lower.endsWith('.png') || lower.endsWith('.webp');
+    });
+
+    for (const [imgPath, imgEntry] of imageEntries) {
+      const imgBlob = await imgEntry.async('blob');
+      const dataUrl = await new Promise<string>((resolve) => {
+        const reader = new FileReader();
+        reader.onloadend = () => resolve(reader.result as string);
+        reader.readAsDataURL(imgBlob);
+      });
+
+      // Match with label txt file if present
+      const fileNameWithExt = imgPath.split('/').pop() || '';
+      const baseName = fileNameWithExt.substring(0, fileNameWithExt.lastIndexOf('.'));
+      
+      const labelEntry = Object.entries(zip.files).find(([p, e]) => {
+        if (e.dir) return false;
+        const pLower = p.toLowerCase();
+        return pLower.endsWith(`${baseName.toLowerCase()}.txt`);
+      });
+
+      const boxes: BoundingBox[] = [];
+      if (labelEntry) {
+        const labelText = await labelEntry[1].async('text');
+        const lines = labelText.trim().split('\n');
+        for (const line of lines) {
+          const parts = line.trim().split(/\s+/);
+          if (parts.length >= 5) {
+            const classId = parseInt(parts[0], 10);
+            const cx = parseFloat(parts[1]);
+            const cy = parseFloat(parts[2]);
+            const w = parseFloat(parts[3]);
+            const h = parseFloat(parts[4]);
+
+            boxes.push({
+              id: `box_${Date.now()}_${Math.random().toString(36).substring(2, 6)}`,
+              x: Math.max(0, cx - w / 2),
+              y: Math.max(0, cy - h / 2),
+              width: w,
+              height: h,
+              classId,
+              className: classId === 1 ? 'lemon' : 'citrus',
+              confidence: 1.0,
+              source: 'yolo',
+            });
+          }
+        }
+      }
+
+      const id = `import_${Date.now()}_${Math.random().toString(36).substring(2, 7)}`;
+      results.push({
+        id,
+        imageDataUrl: dataUrl,
+        width: 960,
+        height: 720,
+        boxes,
+        count: boxes.length,
+        metadata: {
+          id,
+          timestamp: Date.now(),
+          predio: 'Fundo El Naranjal',
+          cuartel: 'Dataset YOLO',
+          hilera: '1',
+          arbol: '1',
+          cara: 'Total',
+          variedad: 'Cítrico General',
+          etapa: 'Maduro',
+          foliageCalibration: 1.35,
+          fruitWeightGram: 180,
+          treeDensityHa: 416,
+          notes: `Importado de ${fileNameWithExt} (${boxes.length} anotaciones)`,
+        },
+      });
+    }
+
+    return results;
+  }
+
+  // Otherwise, individual image files
+  for (const f of fileArray) {
+    if (!f.type.startsWith('image/')) continue;
+    const dataUrl = await new Promise<string>((resolve) => {
+      const reader = new FileReader();
+      reader.onloadend = () => resolve(reader.result as string);
+      reader.readAsDataURL(f);
+    });
+
+    const id = `capture_${Date.now()}_${Math.random().toString(36).substring(2, 7)}`;
+    results.push({
+      id,
+      imageDataUrl: dataUrl,
+      width: 960,
+      height: 720,
+      boxes: [],
+      count: 0,
+      metadata: {
+        id,
+        timestamp: f.lastModified || Date.now(),
+        predio: 'Fundo El Naranjal',
+        cuartel: 'Campo',
+        hilera: '1',
+        arbol: '1',
+        cara: 'Total',
+        variedad: 'Cítrico General',
+        etapa: 'Maduro',
+        foliageCalibration: 1.35,
+        fruitWeightGram: 180,
+        treeDensityHa: 416,
+        notes: `Foto importada: ${f.name}`,
+      },
+    });
+  }
+
+  return results;
 }

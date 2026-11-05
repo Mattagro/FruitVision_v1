@@ -2,10 +2,10 @@ import React, { useState } from 'react';
 import { 
   FolderArchive, Download, Trash2, 
   MapPin, Calendar, Trees, Eye, 
-  Sparkles, FileText, Check 
+  Sparkles, FileText, Check, Upload, Loader2 
 } from 'lucide-react';
 import { CaptureRecord } from '../../types/citrus';
-import { exportYoloDatasetZip, exportCapturesCsv, triggerDownload } from '../../services/yoloExport';
+import { exportYoloDatasetZip, exportCapturesCsv, triggerDownload, importDatasetOrImages } from '../../services/yoloExport';
 
 interface LibraryViewProps {
   captures: CaptureRecord[];
@@ -13,6 +13,7 @@ interface LibraryViewProps {
   onDeleteCapture: (id: string) => void;
   onClearAll: () => void;
   onLoadDemoSamples: () => void;
+  onImportCaptures?: (newCaptures: CaptureRecord[]) => Promise<void>;
 }
 
 export const LibraryView: React.FC<LibraryViewProps> = ({
@@ -21,10 +22,40 @@ export const LibraryView: React.FC<LibraryViewProps> = ({
   onDeleteCapture,
   onClearAll,
   onLoadDemoSamples,
+  onImportCaptures,
 }) => {
   const [selectedCuartel, setSelectedCuartel] = useState<string>('all');
   const [isExportingZip, setIsExportingZip] = useState(false);
   const [exportProgress, setExportProgress] = useState(0);
+  const [isImporting, setIsImporting] = useState(false);
+  const [importFeedback, setImportFeedback] = useState<string | null>(null);
+
+  const importInputRef = React.useRef<HTMLInputElement>(null);
+
+  const handleImportFiles = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const files = e.target.files;
+    if (!files || files.length === 0) return;
+
+    setIsImporting(true);
+    setImportFeedback(null);
+
+    try {
+      const imported = await importDatasetOrImages(files);
+      if (imported.length > 0 && onImportCaptures) {
+        await onImportCaptures(imported);
+        setImportFeedback(`¡Se importaron ${imported.length} capturas exitosamente!`);
+      } else if (imported.length === 0) {
+        setImportFeedback('No se encontraron imágenes o anotaciones válidas en los archivos seleccionados.');
+      }
+    } catch (err: unknown) {
+      const msg = err instanceof Error ? err.message : String(err);
+      alert(`Error al importar: ${msg}`);
+    } finally {
+      setIsImporting(false);
+      if (importInputRef.current) importInputRef.current.value = '';
+      setTimeout(() => setImportFeedback(null), 4000);
+    }
+  };
 
   // Cuartel list
   const cuarteles = Array.from(new Set(captures.map(c => c.metadata.cuartel).filter(Boolean)));
@@ -75,12 +106,30 @@ export const LibraryView: React.FC<LibraryViewProps> = ({
 
         {/* Action Buttons */}
         <div className="flex flex-wrap items-center gap-2.5">
+          <input
+            ref={importInputRef}
+            type="file"
+            multiple
+            accept="image/*,.zip"
+            onChange={handleImportFiles}
+            className="hidden"
+          />
+
+          <button
+            onClick={() => importInputRef.current?.click()}
+            disabled={isImporting}
+            className="px-3.5 py-2 rounded-xl bg-slate-900 hover:bg-slate-800 border border-emerald-500/40 text-xs font-semibold text-emerald-300 flex items-center gap-1.5 transition-colors cursor-pointer disabled:opacity-50"
+          >
+            {isImporting ? <Loader2 className="w-4 h-4 animate-spin" /> : <Upload className="w-4 h-4 text-emerald-400" />}
+            <span>{isImporting ? 'Importando...' : 'Importar Fotos / Dataset ZIP'}</span>
+          </button>
+
           <button
             onClick={onLoadDemoSamples}
             className="px-3.5 py-2 rounded-xl bg-slate-900 hover:bg-slate-800 border border-slate-700 text-xs font-semibold text-amber-400 flex items-center gap-1.5 transition-colors cursor-pointer"
           >
             <Sparkles className="w-4 h-4" />
-            <span>Cargar Muestras Demo</span>
+            <span>Muestras Demo</span>
           </button>
 
           <button
@@ -102,6 +151,13 @@ export const LibraryView: React.FC<LibraryViewProps> = ({
           </button>
         </div>
       </div>
+
+      {importFeedback && (
+        <div className="p-3 rounded-xl bg-emerald-500/10 border border-emerald-500/30 text-emerald-300 text-xs flex items-center gap-2">
+          <Check className="w-4 h-4 shrink-0" />
+          <span>{importFeedback}</span>
+        </div>
+      )}
 
       {/* Filter Tabs by Cuartel */}
       {cuarteles.length > 0 && (

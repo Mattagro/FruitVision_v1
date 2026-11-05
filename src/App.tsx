@@ -226,6 +226,20 @@ export default function App() {
     setActiveTab('library');
   };
 
+  // Import Captures from files or YOLO dataset ZIP
+  const handleImportCaptures = async (newCaptures: CaptureRecord[]) => {
+    for (const cap of newCaptures) {
+      await dbService.saveCapture(cap);
+    }
+    const all = await dbService.getAllCaptures();
+    setCaptures(all);
+    if (newCaptures.length > 0) {
+      setCurrentImage(newCaptures[0].imageDataUrl);
+      setCurrentBoxes(newCaptures[0].boxes);
+      setCurrentMetadata(newCaptures[0].metadata);
+    }
+  };
+
   // Save HSV parameters
   const handleSaveHsvDefault = async (params: HsvFilterParams) => {
     await dbService.saveSetting('hsv_params', params);
@@ -297,6 +311,7 @@ export default function App() {
             onDeleteCapture={handleDeleteCapture}
             onClearAll={handleClearAll}
             onLoadDemoSamples={handleLoadDemoSamples}
+            onImportCaptures={handleImportCaptures}
           />
         )}
 
