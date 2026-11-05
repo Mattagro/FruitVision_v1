@@ -1,5 +1,5 @@
 import React, { useState, useRef } from 'react';
-import { Cpu, Upload, CheckCircle2, AlertCircle, Copy, Check, Terminal, ExternalLink } from 'lucide-react';
+import { Cpu, Upload, CheckCircle2, AlertCircle, Copy, Check, Terminal, ExternalLink, FileArchive, FileText, Trash2, Plus } from 'lucide-react';
 import { yoloDetector } from '../../services/vision/yoloDetector';
 import { YoloModelConfig } from '../../types/citrus';
 
@@ -12,24 +12,100 @@ export const ModelManagerView: React.FC<ModelManagerViewProps> = ({ onModelLoade
   const [isLoading, setIsLoading] = useState(false);
   const [feedback, setFeedback] = useState<{ type: 'success' | 'error'; message: string } | null>(null);
   const [copiedCode, setCopiedCode] = useState(false);
+  const [stagedFiles, setStagedFiles] = useState<File[]>([]);
+  const [expectedShards, setExpectedShards] = useState<string[]>([]);
 
   const fileInputRef = useRef<HTMLInputElement>(null);
+
+  const inspectManifest = async (fileList: File[]) => {
+    const jsonFile = fileList.find(f => f.name.toLowerCase().endsWith('.json'));
+    if (!jsonFile) {
+      setExpectedShards([]);
+      return;
+    }
+
+    try {
+      const text = await jsonFile.text();
+      const parsed = JSON.parse(text);
+      if (parsed.weightsManifest && Array.isArray(parsed.weightsManifest)) {
+        const shards: string[] = [];
+        for (const m of parsed.weightsManifest) {
+          if (Array.isArray(m.paths)) shards.push(...m.paths);
+        }
+        setExpectedShards(shards);
+      }
+    } catch {
+      // Ignored if invalid json
+    }
+  };
 
   const handleFiles = async (e: React.ChangeEvent<HTMLInputElement>) => {
     const files = e.target.files;
     if (!files || files.length === 0) return;
 
+    const fileArray = Array.from(files);
+
+    // If a single ZIP file is chosen, process it immediately!
+    const zip = fileArray.find(f => f.name.toLowerCase().endsWith('.zip'));
+    if (zip && fileArray.length === 1) {
+      setIsLoading(true);
+      setFeedback(null);
+      try {
+        await yoloDetector.loadZipFile(zip);
+        const updated = yoloDetector.getConfig();
+        setConfig(updated);
+        setFeedback({
+          type: 'success',
+          message: `¡Modelo extraído y activado desde ZIP con éxito! (${updated.activeModelName})`,
+        });
+        setStagedFiles([]);
+        setExpectedShards([]);
+        onModelLoaded();
+      } catch (err: unknown) {
+        const msg = err instanceof Error ? err.message : String(err);
+        setFeedback({ type: 'error', message: msg });
+      } finally {
+        setIsLoading(false);
+        if (fileInputRef.current) fileInputRef.current.value = '';
+      }
+      return;
+    }
+
+    // Accumulate files (allows uploading uno a uno or in batches)
+    const newStaged = [...stagedFiles];
+    for (const f of fileArray) {
+      const idx = newStaged.findIndex(item => item.name === f.name);
+      if (idx >= 0) {
+        newStaged[idx] = f;
+      } else {
+        newStaged.push(f);
+      }
+    }
+
+    setStagedFiles(newStaged);
+    await inspectManifest(newStaged);
+    setFeedback(null);
+
+    // Reset input value so re-selecting same file triggers change
+    if (fileInputRef.current) fileInputRef.current.value = '';
+  };
+
+  const handleCompileModel = async () => {
+    if (stagedFiles.length === 0) return;
+
     setIsLoading(true);
     setFeedback(null);
 
     try {
-      await yoloDetector.loadUserFiles(files);
+      await yoloDetector.loadUserFiles(stagedFiles);
       const updated = yoloDetector.getConfig();
       setConfig(updated);
       setFeedback({
         type: 'success',
-        message: `Modelo "${updated.activeModelName}" cargado y pre-calentado exitosamente en WebGL.`,
+        message: `Modelo "${updated.activeModelName}" compilado y pre-calentado en WebGL exitosamente.`,
       });
+      setStagedFiles([]);
+      setExpectedShards([]);
       onModelLoaded();
     } catch (err: unknown) {
       const msg = err instanceof Error ? err.message : String(err);
@@ -42,10 +118,20 @@ export const ModelManagerView: React.FC<ModelManagerViewProps> = ({ onModelLoade
     }
   };
 
+  const handleClearStaged = () => {
+    setStagedFiles([]);
+    setExpectedShards([]);
+    setFeedback(null);
+  };
+
   const updateThresholds = (conf: number, iou: number, tile: 1 | 2) => {
     yoloDetector.setThresholds(conf, iou, tile);
     setConfig(yoloDetector.getConfig());
   };
+
+  const jsonStaged = stagedFiles.find(f => f.name.toLowerCase().endsWith('.json'));
+  const binStaged = stagedFiles.filter(f => f.name.toLowerCase().endsWith('.bin'));
+  const isReadyToCompile = jsonStaged && (expectedShards.length > 0 ? expectedShards.every(s => binStaged.some(b => b.name === s || b.name.endsWith(s))) : binStaged.length > 0);
 
   const colabScript = `# ==============================================================================
 # Script de Entrenamiento Ultralytics YOLOv8/11 para Detección de Cítricos
@@ -57,6 +143,8 @@ export const ModelManagerView: React.FC<ModelManagerViewProps> = ({ onModelLoade
 # !unzip -q /content/dataset_citricos_yolo.zip -d /content/dataset
 
 from ultralytics import YOLO
+import shutil
+from google.colab import files
 
 # Paso 3: Inicializa modelo preentrenado (YOLOv8n o YOLO11n recomendado para web)
 model = YOLO('yolov8n.pt')
@@ -74,7 +162,15 @@ results = model.train(
 # Paso 5: Exporta directamente a TensorFlow.js (Graph Model)
 model.export(format='tfjs', imgsz=640)
 
-print("¡Listo! Descarga la carpeta generada (con model.json y archivos .bin) y cárgala en CitrusVision.")
+# Paso 6 (Recomendado): Comprime en 1 archivo ZIP para subir en 1 solo clic a CitrusVision
+# (YOLO guarda el modelo en runs/detect/train/weights/best_web_model o best_web_model)
+try:
+    shutil.make_archive('/content/modelo_citrus_tfjs', 'zip', 'runs/detect/train/weights/best_web_model')
+except Exception:
+    shutil.make_archive('/content/modelo_citrus_tfjs', 'zip', 'best_web_model')
+
+files.download('/content/modelo_citrus_tfjs.zip')
+print("¡Listo! Sube el archivo 'modelo_citrus_tfjs.zip' directamente a CitrusVision.")
 `;
 
   const handleCopyCode = () => {
@@ -129,24 +225,124 @@ print("¡Listo! Descarga la carpeta generada (con model.json y archivos .bin) y 
               ref={fileInputRef}
               type="file"
               multiple
-              accept=".json,.bin"
+              accept=".json,.bin,.zip"
               onChange={handleFiles}
               className="hidden"
             />
 
             <Upload className="w-10 h-10 text-emerald-400 mx-auto mb-3" />
-            <h3 className="text-sm font-bold text-white mb-1">Cargar Modelo Propio (TF.js)</h3>
+            <h3 className="text-sm font-bold text-white mb-1">Cargar Modelo Propio (TF.js o ZIP)</h3>
             <p className="text-xs text-slate-400 max-w-sm mx-auto mb-4">
-              Selecciona todos los archivos del modelo: <strong>model.json</strong> y todos los fragmentos <strong>.bin</strong>.
+              <strong>Opción 1 (Más fácil):</strong> Sube directamente el archivo <strong>.zip</strong> del modelo.<br />
+              <strong>Opción 2:</strong> Sube los archivos <strong>model.json</strong> y todos los <strong>.bin</strong> (puedes seleccionarlos juntos o añadirlos uno a uno).
             </p>
 
-            <button
-              onClick={() => fileInputRef.current?.click()}
-              disabled={isLoading}
-              className="px-5 py-2.5 bg-emerald-600 hover:bg-emerald-500 text-white font-semibold text-xs rounded-xl transition-all cursor-pointer shadow-md disabled:opacity-50"
-            >
-              {isLoading ? 'Cargando y caldeando tensores...' : 'Seleccionar Archivos de Modelo'}
-            </button>
+            <div className="flex flex-wrap items-center justify-center gap-3">
+              <button
+                onClick={() => fileInputRef.current?.click()}
+                disabled={isLoading}
+                className="px-5 py-2.5 bg-emerald-600 hover:bg-emerald-500 text-white font-semibold text-xs rounded-xl transition-all cursor-pointer shadow-md disabled:opacity-50 flex items-center gap-2"
+              >
+                <Plus className="w-4 h-4" />
+                <span>{stagedFiles.length > 0 ? 'Añadir más archivos' : 'Seleccionar Archivos o ZIP'}</span>
+              </button>
+            </div>
+
+            {/* Staging Bucket Checklist */}
+            {stagedFiles.length > 0 && (
+              <div className="mt-5 p-4 rounded-xl bg-slate-950/80 border border-slate-800 text-left space-y-3">
+                <div className="flex items-center justify-between pb-2 border-b border-slate-800">
+                  <span className="text-xs font-semibold text-slate-200">
+                    Bandeja de archivos ({stagedFiles.length} detectados)
+                  </span>
+                  <button
+                    onClick={handleClearStaged}
+                    className="text-[11px] text-rose-400 hover:text-rose-300 flex items-center gap-1 cursor-pointer transition-colors"
+                  >
+                    <Trash2 className="w-3.5 h-3.5" />
+                    <span>Limpiar</span>
+                  </button>
+                </div>
+
+                <div className="space-y-1.5 max-h-48 overflow-y-auto">
+                  {/* JSON Manifest Status */}
+                  <div className="flex items-center justify-between text-xs p-2 rounded-lg bg-slate-900 border border-slate-800">
+                    <div className="flex items-center gap-2">
+                      <FileText className="w-4 h-4 text-amber-400 shrink-0" />
+                      <span className="text-slate-200 font-mono text-[11px] truncate max-w-[200px]">
+                        {jsonStaged ? jsonStaged.name : 'model.json'}
+                      </span>
+                    </div>
+                    {jsonStaged ? (
+                      <span className="text-[10px] text-emerald-400 bg-emerald-500/10 border border-emerald-500/20 px-2 py-0.5 rounded font-medium flex items-center gap-1">
+                        <Check className="w-3 h-3" /> Listo
+                      </span>
+                    ) : (
+                      <span className="text-[10px] text-amber-400 bg-amber-500/10 border border-amber-500/20 px-2 py-0.5 rounded font-medium">
+                        Pendiente subir .json
+                      </span>
+                    )}
+                  </div>
+
+                  {/* Shards list */}
+                  {expectedShards.length > 0 ? (
+                    expectedShards.map(shard => {
+                      const uploaded = binStaged.find(b => b.name === shard || b.name.endsWith(shard));
+                      return (
+                        <div key={shard} className="flex items-center justify-between text-xs p-2 rounded-lg bg-slate-900 border border-slate-800">
+                          <div className="flex items-center gap-2">
+                            <FileArchive className="w-4 h-4 text-sky-400 shrink-0" />
+                            <span className="text-slate-200 font-mono text-[11px] truncate max-w-[200px]">{shard}</span>
+                          </div>
+                          {uploaded ? (
+                            <span className="text-[10px] text-emerald-400 bg-emerald-500/10 border border-emerald-500/20 px-2 py-0.5 rounded font-medium flex items-center gap-1">
+                              <Check className="w-3 h-3" /> Listo
+                            </span>
+                          ) : (
+                            <span className="text-[10px] text-rose-400 bg-rose-500/10 border border-rose-500/20 px-2 py-0.5 rounded font-medium">
+                              Falta subir
+                            </span>
+                          )}
+                        </div>
+                      );
+                    })
+                  ) : (
+                    binStaged.map(b => (
+                      <div key={b.name} className="flex items-center justify-between text-xs p-2 rounded-lg bg-slate-900 border border-slate-800">
+                        <div className="flex items-center gap-2">
+                          <FileArchive className="w-4 h-4 text-sky-400 shrink-0" />
+                          <span className="text-slate-200 font-mono text-[11px] truncate max-w-[200px]">{b.name}</span>
+                        </div>
+                        <span className="text-[10px] text-emerald-400 bg-emerald-500/10 border border-emerald-500/20 px-2 py-0.5 rounded font-medium flex items-center gap-1">
+                          <Check className="w-3 h-3" /> Listo
+                        </span>
+                      </div>
+                    ))
+                  )}
+                </div>
+
+                <div className="pt-2 border-t border-slate-800 flex items-center gap-2">
+                  <button
+                    onClick={handleCompileModel}
+                    disabled={!isReadyToCompile || isLoading}
+                    className={`w-full py-2.5 px-4 rounded-xl text-xs font-bold transition-all cursor-pointer flex items-center justify-center gap-2 ${
+                      isReadyToCompile
+                        ? 'bg-emerald-600 hover:bg-emerald-500 text-white shadow-lg shadow-emerald-900/30'
+                        : 'bg-slate-800 text-slate-500 cursor-not-allowed'
+                    }`}
+                  >
+                    <Cpu className="w-4 h-4" />
+                    <span>
+                      {isLoading
+                        ? 'Compilando tensores en WebGL...'
+                        : isReadyToCompile
+                        ? 'Compilar y Activar Modelo en GPU'
+                        : 'Completa los archivos requeridos para compilar'}
+                    </span>
+                  </button>
+                </div>
+              </div>
+            )}
 
             {feedback && (
               <div

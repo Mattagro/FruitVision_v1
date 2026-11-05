@@ -1,4 +1,5 @@
 import * as tf from '@tensorflow/tfjs';
+import JSZip from 'jszip';
 import { BoundingBox, YoloModelConfig } from '../../types/citrus';
 
 export interface YoloInferenceResult {
@@ -55,13 +56,103 @@ export class YoloDetectorService {
   }
 
   /**
-   * Load user-provided TF.js model files
+   * Load model from a ZIP file containing model.json and .bin shards
+   */
+  public async loadZipFile(zipFile: File | Blob): Promise<boolean> {
+    try {
+      const zip = await JSZip.loadAsync(zipFile);
+      const extractedFiles: File[] = [];
+
+      for (const [relativePath, entry] of Object.entries(zip.files)) {
+        if (entry.dir) continue;
+        const cleanName = relativePath.split('/').pop() || relativePath;
+        const lower = cleanName.toLowerCase();
+        if (lower.endsWith('.json') || lower.endsWith('.bin')) {
+          const blob = await entry.async('blob');
+          const normalizedName = lower.endsWith('.json') ? 'model.json' : cleanName;
+          extractedFiles.push(new File([blob], normalizedName));
+        }
+      }
+
+      if (extractedFiles.length === 0) {
+        throw new Error('El archivo ZIP no contiene ningún archivo .json o .bin.');
+      }
+
+      return await this.loadUserFiles(extractedFiles);
+    } catch (err: unknown) {
+      const msg = err instanceof Error ? err.message : String(err);
+      this.config.loadError = msg;
+      this.config.isLoaded = false;
+      throw new Error(`Error al leer archivo ZIP: ${msg}`);
+    }
+  }
+
+  /**
+   * Load user-provided TF.js model files (.json + .bin shards)
    */
   public async loadUserFiles(files: FileList | File[]): Promise<boolean> {
     const fileList = Array.from(files);
-    const jsonFile = fileList.find(f => f.name.endsWith('.json'));
+    
+    // Check if a single ZIP file was provided
+    const zipFile = fileList.find(f => f.name.toLowerCase().endsWith('.zip'));
+    if (zipFile && fileList.length === 1) {
+      return await this.loadZipFile(zipFile);
+    }
+
+    const jsonFile = fileList.find(f => f.name.toLowerCase().endsWith('.json'));
     if (!jsonFile) {
-      throw new Error('No se encontró el archivo model.json.');
+      throw new Error('No se encontró el archivo model.json. Asegúrate de incluir el archivo .json junto a los archivos .bin.');
+    }
+
+    // Inspect json text to verify all required weight shards are present
+    let expectedShards: string[] = [];
+    try {
+      const jsonText = await jsonFile.text();
+      const parsed = JSON.parse(jsonText);
+      if (parsed.weightsManifest && Array.isArray(parsed.weightsManifest)) {
+        for (const manifest of parsed.weightsManifest) {
+          if (Array.isArray(manifest.paths)) {
+            expectedShards.push(...manifest.paths);
+          }
+        }
+      }
+    } catch (e) {
+      console.warn('No se pudo inspeccionar weightsManifest:', e);
+    }
+
+    // Normalize files: ensure JSON is named 'model.json' for TF.js browserFiles loader
+    const normalizedFiles: File[] = [];
+    normalizedFiles.push(new File([jsonFile], 'model.json', { type: 'application/json' }));
+
+    const binFiles = fileList.filter(f => f !== jsonFile && f.name.toLowerCase().endsWith('.bin'));
+
+    // Check if any expected shard is missing
+    if (expectedShards.length > 0) {
+      const missingShards = expectedShards.filter(expected => 
+        !binFiles.some(f => f.name === expected || f.name.endsWith(expected))
+      );
+
+      if (missingShards.length > 0) {
+        const foundCount = binFiles.length;
+        throw new Error(
+          `Faltan fragmentos .bin requeridos por el modelo: ${missingShards.join(', ')}. Tu modelo necesita ${expectedShards.length} fragmentos binarios (se subieron ${foundCount}).`
+        );
+      }
+
+      // Add bin files with their matching expected shard names
+      for (const shardName of expectedShards) {
+        const matched = binFiles.find(f => f.name === shardName || f.name.endsWith(shardName));
+        if (matched) {
+          normalizedFiles.push(new File([matched], shardName));
+        }
+      }
+    } else {
+      // If no manifest paths found, include all bin files as-is
+      normalizedFiles.push(...binFiles);
+    }
+
+    if (normalizedFiles.length <= 1) {
+      throw new Error('Faltan los archivos de pesos binarios (.bin). Se requiere model.json y al menos un archivo .bin.');
     }
 
     try {
@@ -73,7 +164,7 @@ export class YoloDetectorService {
       this.config.isLoaded = false;
       this.config.loadError = undefined;
 
-      const loadedModel = await tf.loadGraphModel(tf.io.browserFiles(fileList));
+      const loadedModel = await tf.loadGraphModel(tf.io.browserFiles(normalizedFiles));
       this.model = loadedModel;
       this.config.isLoaded = true;
       this.config.modelType = 'yolov8';
