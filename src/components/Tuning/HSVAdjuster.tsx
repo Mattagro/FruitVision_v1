@@ -210,13 +210,13 @@ export const HSVAdjuster: React.FC<HSVAdjusterProps> = ({
               onClick={() => applyPreset(DEFAULT_HSV_ORANGE)}
               className="px-3 py-2 text-xs font-medium rounded-xl bg-slate-800 hover:bg-slate-700 text-amber-300 border border-amber-500/30 text-left transition-colors cursor-pointer"
             >
-              Naranja Valencia
+              🍊 Naranja Valencia
             </button>
             <button
               onClick={() => applyPreset(DEFAULT_HSV_LEMON)}
               className="px-3 py-2 text-xs font-medium rounded-xl bg-slate-800 hover:bg-slate-700 text-yellow-300 border border-yellow-500/30 text-left transition-colors cursor-pointer"
             >
-              Limón Eureka
+              🍋 Limón Eureka
             </button>
             <button
               onClick={() => applyPreset({
@@ -228,7 +228,32 @@ export const HSVAdjuster: React.FC<HSVAdjusterProps> = ({
               })}
               className="px-3 py-2 text-xs font-medium rounded-xl bg-slate-800 hover:bg-slate-700 text-orange-400 border border-orange-500/30 text-left transition-colors cursor-pointer"
             >
-              Mandarina Murcott
+              🍊 Mandarina Murcott
+            </button>
+            <button
+              onClick={() => applyPreset({
+                ...DEFAULT_HSV_ORANGE,
+                hMin: 10,
+                hMax: 32,
+                sMin: 50,
+                minCircularity: 0.62,
+              })}
+              className="px-3 py-2 text-xs font-medium rounded-xl bg-slate-800 hover:bg-slate-700 text-amber-400 border border-amber-500/30 text-left transition-colors cursor-pointer"
+            >
+              🍊 Clementina / Oronules
+            </button>
+            <button
+              onClick={() => applyPreset({
+                ...DEFAULT_HSV_ORANGE,
+                hMin: 0,
+                hMax: 18,
+                sMin: 35,
+                minCircularity: 0.58,
+                minRadius: 12,
+              })}
+              className="px-3 py-2 text-xs font-medium rounded-xl bg-slate-800 hover:bg-slate-700 text-rose-400 border border-rose-500/30 text-left transition-colors cursor-pointer"
+            >
+              🔴 Pomelo Star Ruby
             </button>
             <button
               onClick={() => applyPreset({
@@ -241,7 +266,7 @@ export const HSVAdjuster: React.FC<HSVAdjusterProps> = ({
               })}
               className="px-3 py-2 text-xs font-medium rounded-xl bg-slate-800 hover:bg-slate-700 text-lime-400 border border-lime-500/30 text-left transition-colors cursor-pointer"
             >
-              Envero (Verdeante)
+              🟢 Envero (Verdeante)
             </button>
           </div>
         </div>

@@ -1,5 +1,5 @@
 /* Service Worker for CitrusVision Offline PWA */
-const CACHE_NAME = 'citrus-vision-v1.1';
+const CACHE_NAME = 'citrus-vision-v2.0';
 
 // Assets to cache immediately on install
 const PRECACHE_ASSETS = [
@@ -11,6 +11,7 @@ const PRECACHE_ASSETS = [
 ];
 
 self.addEventListener('install', (event) => {
+  self.skipWaiting();
   event.waitUntil(
     caches.open(CACHE_NAME).then(async (cache) => {
       for (const asset of PRECACHE_ASSETS) {
@@ -20,7 +21,7 @@ self.addEventListener('install', (event) => {
           // Non-blocking
         }
       }
-    }).then(() => self.skipWaiting())
+    })
   );
 });
 
@@ -34,23 +35,37 @@ self.addEventListener('activate', (event) => {
   );
 });
 
+self.addEventListener('message', (event) => {
+  if (event.data && event.data.type === 'SKIP_WAITING') {
+    self.skipWaiting();
+  }
+});
+
 self.addEventListener('fetch', (event) => {
   const req = event.request;
   if (req.method !== 'GET') return;
 
   const url = new URL(req.url);
 
-  // For navigation requests (loading pages)
+  // For navigation requests: Network first, fallback to cached HTML
   if (req.mode === 'navigate') {
     event.respondWith(
-      fetch(req).catch(() => {
-        return caches.match('./') || caches.match('index.html');
-      })
+      fetch(req)
+        .then((networkResponse) => {
+          if (networkResponse && networkResponse.status === 200) {
+            const resClone = networkResponse.clone();
+            caches.open(CACHE_NAME).then((cache) => cache.put(req, resClone));
+          }
+          return networkResponse;
+        })
+        .catch(() => {
+          return caches.match('./') || caches.match('index.html');
+        })
     );
     return;
   }
 
-  // Google Fonts caching for offline UI typography
+  // Google Fonts caching
   if (url.origin.includes('fonts.googleapis.com') || url.origin.includes('fonts.gstatic.com')) {
     event.respondWith(
       caches.match(req).then((cachedResponse) => {
@@ -67,29 +82,20 @@ self.addEventListener('fetch', (event) => {
     return;
   }
 
-  // Same-origin assets: Stale-While-Revalidate / Cache-First
+  // Same-origin assets: Network-First when online, Cache fallback when offline
   if (url.origin === location.origin) {
     event.respondWith(
-      caches.match(req).then((cachedResponse) => {
-        if (cachedResponse) {
-          // Fetch in background to update cache
-          fetch(req).then((networkResponse) => {
-            if (networkResponse && networkResponse.status === 200) {
-              const resClone = networkResponse.clone();
-              caches.open(CACHE_NAME).then((cache) => cache.put(req, resClone));
-            }
-          }).catch(() => {});
-          return cachedResponse;
-        }
-
-        return fetch(req).then((networkResponse) => {
+      fetch(req)
+        .then((networkResponse) => {
           if (networkResponse && networkResponse.status === 200) {
             const resClone = networkResponse.clone();
             caches.open(CACHE_NAME).then((cache) => cache.put(req, resClone));
           }
           return networkResponse;
-        });
-      })
+        })
+        .catch(() => {
+          return caches.match(req);
+        })
     );
   }
 });
