@@ -69,7 +69,8 @@ export class YoloDetectorService {
         const lower = cleanName.toLowerCase();
         if (lower.endsWith('.json') || lower.endsWith('.bin')) {
           const blob = await entry.async('blob');
-          const normalizedName = lower.endsWith('.json') ? 'model.json' : cleanName;
+          const normalizedName = lower === 'labels.json' ? 'labels.json'
+            : lower.endsWith('.json') ? 'model.json' : cleanName;
           extractedFiles.push(new File([blob], normalizedName));
         }
       }
@@ -99,7 +100,8 @@ export class YoloDetectorService {
       return await this.loadZipFile(zipFile);
     }
 
-    const jsonFile = fileList.find(f => f.name.toLowerCase().endsWith('.json'));
+    const labelsFile = fileList.find(f => f.name.toLowerCase() === 'labels.json');
+    const jsonFile = fileList.find(f => f.name.toLowerCase().endsWith('.json') && f !== labelsFile);
     if (!jsonFile) {
       throw new Error('No se encontró el archivo model.json. Asegúrate de incluir el archivo .json junto a los archivos .bin.');
     }
@@ -165,6 +167,32 @@ export class YoloDetectorService {
       this.config.loadError = undefined;
 
       const loadedModel = await tf.loadGraphModel(tf.io.browserFiles(normalizedFiles));
+      // Validar que sea un detector YOLO: entrada [1,H,W,3], salida [1,4+nc,N]
+      const inShape = loadedModel.inputs?.[0]?.shape;
+      const outShape = loadedModel.outputs?.[0]?.shape;
+      if (outShape && outShape.length !== 3) {
+        loadedModel.dispose();
+        throw new Error(
+          `El modelo no es un detector YOLO (salida ${JSON.stringify(outShape)}). ` +
+          `Una red de clasificación (yolov8n-cls) no es compatible: entrena con dataset de detección (data.yaml) y exporta con imgsz=640.`
+        );
+      }
+      if (inShape && inShape[1] && inShape[1] > 0) this.config.inputSize = inShape[1];
+
+      let labels: string[] | null = null;
+      if (labelsFile) {
+        try {
+          const arr = JSON.parse(await labelsFile.text());
+          if (Array.isArray(arr)) labels = arr.map(String);
+        } catch { /* labels.json inválido: se ignora */ }
+      }
+      if (outShape) {
+        const nc = Math.min(outShape[1]!, outShape[2]!) - 4;
+        this.config.classes = Array.from({ length: nc }, (_, i) => labels?.[i] ?? `clase_${i}`);
+      } else if (labels) {
+        this.config.classes = labels;
+      }
+
       this.model = loadedModel;
       this.config.isLoaded = true;
       this.config.modelType = 'yolov8';
