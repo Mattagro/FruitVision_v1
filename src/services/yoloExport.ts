@@ -1,6 +1,9 @@
 import JSZip from 'jszip';
 import { CaptureRecord, BoundingBox } from '../types/citrus';
 
+// Detector de clase única. La variedad/especie va como metadato, no como clase.
+const CITRUS_CLASS = 'citrus';
+
 /**
  * Convert base64 DataURL to ArrayBuffer or Blob
  */
@@ -29,22 +32,9 @@ export async function exportYoloDatasetZip(
   const lblTrain = zip.folder('labels/train')!;
   const lblVal = zip.folder('labels/val')!;
 
-  // Collect unique classes
-  const classMap = new Map<string, number>();
-  let classIndex = 0;
-
-  captures.forEach(c => {
-    c.boxes.forEach(b => {
-      const name = b.className || 'citrus';
-      if (!classMap.has(name)) {
-        classMap.set(name, classIndex++);
-      }
-    });
-  });
-
-  if (classMap.size === 0) {
-    classMap.set('citrus', 0);
-  }
+  // Una sola clase: 'citrus'. La variedad/especie (naranja, limón, mandarina...)
+  // es metadato de la captura, no una clase del detector.
+  const classMap = new Map<string, number>([[CITRUS_CLASS, 0]]);
 
   // Shuffle or split 80/20 train/val
   const total = captures.length;
@@ -61,7 +51,7 @@ export async function exportYoloDatasetZip(
     // Generate YOLO format annotations: class_id center_x center_y width height (normalized)
     const labelLines: string[] = [];
     for (const box of item.boxes) {
-      const clsId = classMap.get(box.className) ?? 0;
+      const clsId = 0; // clase única
       const cx = Math.min(1, Math.max(0, box.x + box.width / 2));
       const cy = Math.min(1, Math.max(0, box.y + box.height / 2));
       const w = Math.min(1, Math.max(0.001, box.width));
@@ -264,8 +254,8 @@ export async function importDatasetOrImages(
               y: Math.max(0, cy - h / 2),
               width: w,
               height: h,
-              classId,
-              className: classId === 1 ? 'lemon' : 'citrus',
+              classId: 0,
+              className: CITRUS_CLASS,
               confidence: 1.0,
               source: 'yolo',
             });

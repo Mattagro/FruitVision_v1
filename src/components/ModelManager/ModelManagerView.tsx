@@ -18,7 +18,7 @@ export const ModelManagerView: React.FC<ModelManagerViewProps> = ({ onModelLoade
   const fileInputRef = useRef<HTMLInputElement>(null);
 
   const inspectManifest = async (fileList: File[]) => {
-    const jsonFile = fileList.find(f => f.name.toLowerCase().endsWith('.json'));
+    const jsonFile = fileList.find(f => f.name.toLowerCase().endsWith('.json') && f.name.toLowerCase() !== 'labels.json');
     if (!jsonFile) {
       setExpectedShards([]);
       return;
