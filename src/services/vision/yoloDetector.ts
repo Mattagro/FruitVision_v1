@@ -10,6 +10,7 @@ export interface YoloInferenceResult {
 
 export class YoloDetectorService {
   private model: tf.GraphModel | null = null;
+  private warnedNormalized = false;
   private config: YoloModelConfig = {
     inputSize: 640,
     confThreshold: 0.35,
@@ -308,13 +309,30 @@ export class YoloDetectorService {
         return reshaped.squeeze([0]).arraySync() as number[][];
       });
 
+      // Detección automática del sistema de coordenadas: según la versión de
+      // Ultralytics/onnx2tf, el export TF.js entrega cx,cy,w,h en píxeles (0..inputSize)
+      // o normalizados (0..1). Si ninguna caja candidata supera ~2, son normalizadas.
+      let maxCoord = 0;
+      for (const row of predictions) {
+        let s = 0;
+        for (let c = 4; c < row.length; c++) if (row[c] > s) s = row[c];
+        if (s >= confThreshold) {
+          maxCoord = Math.max(maxCoord, row[0], row[1], row[2], row[3]);
+        }
+      }
+      const coordScale = maxCoord > 0 && maxCoord <= 2 ? inputSize : 1;
+      if (coordScale !== 1 && !this.warnedNormalized) {
+        console.info('[YOLO] Salida normalizada (0-1) detectada: se escala por inputSize.');
+        this.warnedNormalized = true;
+      }
+
       // Parse predictions [8400, 4 + classes]
       for (const row of predictions) {
         // [cx, cy, w, h, class0_score, ...]
-        const cx = row[0];
-        const cy = row[1];
-        const w = row[2];
-        const h = row[3];
+        const cx = row[0] * coordScale;
+        const cy = row[1] * coordScale;
+        const w = row[2] * coordScale;
+        const h = row[3] * coordScale;
 
         let maxScore = 0;
         let bestClass = 0;
