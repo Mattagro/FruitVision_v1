@@ -159,10 +159,14 @@ class CitrusDatabase {
     const db = await this.getDB();
     return new Promise((resolve, reject) => {
       const tx = db.transaction(STORE_SETTINGS, 'readwrite');
-      const store = tx.objectStore(STORE_SETTINGS);
-      const req = store.put(value, key);
-      req.onsuccess = () => resolve();
-      req.onerror = () => reject(req.error);
+      tx.oncomplete = () => resolve();
+      tx.onerror = () => reject(toFriendlyStorageError(tx.error));
+      tx.onabort = () => reject(toFriendlyStorageError(tx.error));
+      try {
+        tx.objectStore(STORE_SETTINGS).put(value, key);
+      } catch (e) {
+        reject(toFriendlyStorageError(e));
+      }
     });
   }
 }

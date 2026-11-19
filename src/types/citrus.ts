@@ -122,6 +122,8 @@ export interface YoloModelConfig {
   activeModelName: string;
   modelFingerprint?: string;  // SHA-256 (12 hex) de model.json + .bin; undefined en el modelo demo
   modelSizeBytes?: number;
+  modelPersisted?: boolean;   // true = guardado en el teléfono (se carga solo al abrir); false = no se pudo guardar
+  persistError?: string;
 }
 
 export interface YieldBlockStats {

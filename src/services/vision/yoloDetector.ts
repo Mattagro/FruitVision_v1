@@ -1,6 +1,7 @@
 import * as tf from '@tensorflow/tfjs';
 import JSZip from 'jszip';
 import { BoundingBox, YoloModelConfig } from '../../types/citrus';
+import { saveModelFiles, loadModelFiles, deleteModelFiles, saveThresholds, loadThresholds } from '../modelStore';
 
 export interface YoloInferenceResult {
   boxes: BoundingBox[];
@@ -65,14 +66,76 @@ export class YoloDetectorService {
     }
   }
 
+  private listeners = new Set<() => void>();
+
   public getConfig(): YoloModelConfig {
     return { ...this.config };
+  }
+
+  /** Avisa a la UI cuando cambia el modelo activo (carga, restauración o descarga). */
+  public subscribe(listener: () => void): () => void {
+    this.listeners.add(listener);
+    return () => { this.listeners.delete(listener); };
+  }
+
+  private notify() {
+    this.listeners.forEach(l => { try { l(); } catch { /* un listener no debe romper la carga */ } });
   }
 
   public setThresholds(conf: number, iou: number, tileGrid: 1 | 2) {
     this.config.confThreshold = conf;
     this.config.iouThreshold = iou;
     this.config.tileGrid = tileGrid;
+    // Recordar la sensibilidad elegida entre sesiones (no bloquea ni falla la UI).
+    saveThresholds({ conf, iou, tileGrid }).catch(e => console.warn('No se pudo guardar la sensibilidad:', e));
+  }
+
+  /**
+   * Al abrir la app: recupera la sensibilidad y el modelo guardados en el teléfono.
+   * Funciona sin internet. 'none' = nunca se guardó un modelo; 'error' = no se pudo restaurar.
+   */
+  public async restoreSavedState(): Promise<'restored' | 'none' | 'error'> {
+    try {
+      const t = await loadThresholds();
+      if (t) {
+        this.config.confThreshold = t.conf;
+        this.config.iouThreshold = t.iou;
+        this.config.tileGrid = t.tileGrid;
+      }
+    } catch (e) {
+      console.warn('No se pudo restaurar la sensibilidad:', e);
+    }
+    try {
+      const files = await loadModelFiles();
+      if (!files) return 'none';
+      await this.loadUserFiles(files, false);
+      return 'restored';
+    } catch (e) {
+      console.warn('No se pudo restaurar el modelo guardado:', e);
+      return 'error';
+    } finally {
+      this.notify();
+    }
+  }
+
+  /** Quita el modelo activo y su copia guardada; vuelve al detector de demostración. */
+  public async unloadModel(): Promise<void> {
+    if (this.model) { this.model.dispose(); this.model = null; }
+    await deleteModelFiles();
+    this.config = {
+      ...this.config,
+      classes: ['citrus'],
+      modelType: 'demo',
+      isLoaded: false,
+      isWarmedUp: false,
+      loadError: undefined,
+      activeModelName: 'Detector Cítricos Demo (Precalibrado)',
+      modelFingerprint: undefined,
+      modelSizeBytes: undefined,
+      modelPersisted: undefined,
+      persistError: undefined,
+    };
+    this.notify();
   }
 
   /**
@@ -111,7 +174,7 @@ export class YoloDetectorService {
   /**
    * Load user-provided TF.js model files (.json + .bin shards)
    */
-  public async loadUserFiles(files: FileList | File[]): Promise<boolean> {
+  public async loadUserFiles(files: FileList | File[], persist = true): Promise<boolean> {
     const fileList = Array.from(files);
     
     // Check if a single ZIP file was provided
@@ -223,6 +286,25 @@ export class YoloDetectorService {
 
       // Warmup tensor
       await this.warmup();
+
+      // Guardar en el teléfono para cargarlo solo la próxima vez (también sin internet).
+      if (persist) {
+        try {
+          const toStore = [...normalizedFiles];
+          if (labelsFile) toStore.push(new File([labelsFile], 'labels.json', { type: 'application/json' }));
+          await saveModelFiles(toStore);
+          this.config.modelPersisted = true;
+          this.config.persistError = undefined;
+        } catch (e) {
+          this.config.modelPersisted = false;
+          this.config.persistError = e instanceof Error ? e.message : String(e);
+          console.warn('No se pudo guardar el modelo en el teléfono:', e);
+        }
+      } else {
+        this.config.modelPersisted = true; // viene de la copia guardada
+        this.config.persistError = undefined;
+      }
+      this.notify();
       return true;
     } catch (err: unknown) {
       const msg = err instanceof Error ? err.message : String(err);
