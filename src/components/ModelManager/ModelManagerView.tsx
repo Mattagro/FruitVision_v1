@@ -1,4 +1,4 @@
-import React, { useState, useRef } from 'react';
+import React, { useState, useRef, useEffect } from 'react';
 import { Cpu, Upload, CheckCircle2, AlertCircle, Copy, Check, Terminal, ExternalLink, FileArchive, FileText, Trash2, Plus } from 'lucide-react';
 import { yoloDetector } from '../../services/vision/yoloDetector';
 import { YoloModelConfig } from '../../types/citrus';
@@ -16,6 +16,17 @@ export const ModelManagerView: React.FC<ModelManagerViewProps> = ({ onModelLoade
   const [expectedShards, setExpectedShards] = useState<string[]>([]);
 
   const fileInputRef = useRef<HTMLInputElement>(null);
+
+  // El modelo guardado se restaura en segundo plano al abrir la app: refrescar al terminar.
+  useEffect(() => yoloDetector.subscribe(() => setConfig(yoloDetector.getConfig())), []);
+
+  const handleUnloadModel = async () => {
+    if (!confirm('¿Quitar el modelo guardado en este teléfono? Volverás al detector de demostración y tendrás que cargar el ZIP otra vez para usar tu modelo.')) return;
+    await yoloDetector.unloadModel();
+    setConfig(yoloDetector.getConfig());
+    setFeedback(null);
+    onModelLoaded();
+  };
 
   const inspectManifest = async (fileList: File[]) => {
     const jsonFile = fileList.find(f => f.name.toLowerCase().endsWith('.json') && f.name.toLowerCase() !== 'labels.json');
@@ -217,6 +228,35 @@ print("¡Listo! Sube el archivo 'modelo_citrus_tfjs.zip' directamente a CitrusVi
                 ? 'Modelo personalizado en ejecución en memoria GPU local.'
                 : 'Detector integrado calibrado para cítricos con heurística multi-escala y supresión NMS.'}
             </div>
+
+            {config.isLoaded && config.modelFingerprint && (
+              <div className="text-[11px] font-mono text-slate-500">
+                Huella {config.modelFingerprint}
+                {config.modelSizeBytes ? ` · ${(config.modelSizeBytes / 1024 ** 2).toFixed(1)} MB` : ''}
+              </div>
+            )}
+
+            {config.isLoaded && config.modelPersisted === true && (
+              <div className="text-xs text-emerald-400 flex items-center gap-1.5">
+                <CheckCircle2 className="w-3.5 h-3.5 shrink-0" />
+                <span>Guardado en este teléfono: se carga solo al abrir la app, también sin internet.</span>
+              </div>
+            )}
+
+            {config.isLoaded && config.modelPersisted === false && (
+              <div className="text-xs text-amber-300">
+                ⚠ No se pudo guardar el modelo en el teléfono (probablemente falta espacio): tendrás que cargarlo de nuevo al reabrir la app.
+              </div>
+            )}
+
+            {config.isLoaded && (
+              <button
+                onClick={handleUnloadModel}
+                className="text-xs text-slate-400 hover:text-red-300 underline underline-offset-2 cursor-pointer"
+              >
+                Quitar modelo guardado
+              </button>
+            )}
           </div>
 
           {/* Upload Custom Weights */}

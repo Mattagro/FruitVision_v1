@@ -19,6 +19,7 @@ import { getInitialDemoCaptures } from './services/demoData';
 import { extractExifFromBlob, getCurrentDeviceLocation } from './services/exif';
 import { colorDetector } from './services/vision/colorDetector';
 import { buildProvenance } from './services/provenance';
+import { yoloDetector } from './services/vision/yoloDetector';
 
 export default function App() {
   const [activeTab, setActiveTab] = useState<ActiveTab>('camera');
@@ -73,6 +74,12 @@ export default function App() {
       }
     }
     init();
+  }, []);
+
+  // Recuperar el modelo YOLO y la sensibilidad guardados en el teléfono (funciona sin internet).
+  // Corre aparte de la carga de capturas para no demorar el inicio de la app.
+  useEffect(() => {
+    yoloDetector.restoreSavedState();
   }, []);
 
   // Handle Photo File Upload
