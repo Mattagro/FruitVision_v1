@@ -93,6 +93,7 @@ export interface CaptureRecord {
   metadata: CaptureMetadata;
   count: number;
   provenance?: CaptureProvenance;
+  isDemo?: boolean;            // muestra de ejemplo: se excluye de exportaciones y rendimiento
 }
 
 export interface HsvFilterParams {

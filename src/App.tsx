@@ -16,6 +16,7 @@ import {
   DEFAULT_ORCHARD_METADATA 
 } from './services/db';
 import { getInitialDemoCaptures } from './services/demoData';
+import { isDemoCapture, realCaptures } from './services/demo';
 import { extractExifFromBlob, getCurrentDeviceLocation } from './services/exif';
 import { colorDetector } from './services/vision/colorDetector';
 import { buildProvenance } from './services/provenance';
@@ -238,11 +239,21 @@ export default function App() {
     for (const sample of demoSamples) {
       await dbService.saveCapture(sample);
     }
-    setCaptures(demoSamples);
+    // Agregar las demo sin ocultar las capturas reales (antes la lista quedaba solo con las demo).
+    setCaptures(prev => [...demoSamples, ...prev.filter(c => !isDemoCapture(c))]);
     setCurrentImage(demoSamples[0].imageDataUrl);
     setCurrentBoxes(demoSamples[0].boxes);
     setCurrentMetadata(demoSamples[0].metadata);
     setActiveTab('library');
+  };
+
+  // Quitar solo las muestras demo (las capturas reales no se tocan)
+  const handleRemoveDemos = async () => {
+    const demos = captures.filter(isDemoCapture);
+    for (const d of demos) {
+      await dbService.deleteCapture(d.id);
+    }
+    setCaptures(prev => prev.filter(c => !isDemoCapture(c)));
   };
 
   // Import Captures from files or YOLO dataset ZIP
@@ -280,7 +291,7 @@ export default function App() {
       <Header
         activeTab={activeTab}
         onTabChange={setActiveTab}
-        captureCount={captures.length}
+        captureCount={realCaptures(captures).length}
         onNewPhotoClick={() => fileInputRef.current?.click()}
       />
 
@@ -330,6 +341,7 @@ export default function App() {
             onDeleteCapture={handleDeleteCapture}
             onClearAll={handleClearAll}
             onLoadDemoSamples={handleLoadDemoSamples}
+            onRemoveDemos={handleRemoveDemos}
             onImportCaptures={handleImportCaptures}
           />
         )}

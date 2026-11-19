@@ -3,13 +3,17 @@ import { BarChart3, TrendingUp, AlertTriangle, CheckCircle2, Download, Scale, Tr
 import { CaptureRecord, YieldBlockStats } from '../../types/citrus';
 import { calculateBlockStats } from '../../services/yieldStats';
 import { exportCapturesCsv, triggerDownload } from '../../services/yoloExport';
+import { realCaptures } from '../../services/demo';
 
 interface YieldViewProps {
   captures: CaptureRecord[];
   onOpenCapture: (capture: CaptureRecord) => void;
 }
 
-export const YieldView: React.FC<YieldViewProps> = ({ captures, onOpenCapture }) => {
+export const YieldView: React.FC<YieldViewProps> = ({ captures: allCaptures, onOpenCapture }) => {
+  // Las muestras demo no entran al cálculo de rendimiento ni al CSV.
+  const captures = realCaptures(allCaptures);
+  const demoCount = allCaptures.length - captures.length;
   const blockStats = calculateBlockStats(captures);
 
   // Global simulation override state
@@ -31,6 +35,11 @@ export const YieldView: React.FC<YieldViewProps> = ({ captures, onOpenCapture })
         <p className="text-sm text-slate-400">
           Realiza capturas con la cámara en vivo o anota imágenes para generar estimaciones agronómicas de rendimiento.
         </p>
+        {demoCount > 0 && (
+          <p className="text-xs text-slate-500 mt-3">
+            Hay {demoCount} muestras demo guardadas; no se incluyen en el cálculo de rendimiento.
+          </p>
+        )}
       </div>
     );
   }

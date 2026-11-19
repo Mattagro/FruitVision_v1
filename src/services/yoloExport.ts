@@ -1,5 +1,6 @@
 import JSZip from 'jszip';
 import { CaptureRecord, BoundingBox } from '../types/citrus';
+import { realCaptures } from './demo';
 
 // Detector de clase única. La variedad/especie va como metadato, no como clase.
 const CITRUS_CLASS = 'citrus';
@@ -25,6 +26,7 @@ export async function exportYoloDatasetZip(
   captures: CaptureRecord[],
   onProgress?: (progress: number) => void
 ): Promise<Blob> {
+  captures = realCaptures(captures); // las muestras demo nunca van al dataset de entrenamiento
   const zip = new JSZip();
 
   const imgTrain = zip.folder('images/train')!;
@@ -139,6 +141,7 @@ export function csvText(value: unknown): string {
  * validación) van al final para no romper modelos de Power BI ya construidos.
  */
 export function exportCapturesCsv(captures: CaptureRecord[]): string {
+  captures = realCaptures(captures); // excluye muestras demo
   const headers = [
     'ID',
     'Fecha',
@@ -226,7 +229,7 @@ export function exportCapturesCsv(captures: CaptureRecord[]): string {
  * imágenes (data URL) para que el archivo sea liviano; con includeImages las incluye.
  */
 export function exportCapturesJson(captures: CaptureRecord[], includeImages = false): string {
-  const records = captures.map(c => {
+  const records = realCaptures(captures).map(c => {
     const { imageDataUrl, ...rest } = c;
     return includeImages ? c : rest;
   });

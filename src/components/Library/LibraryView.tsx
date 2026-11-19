@@ -6,6 +6,7 @@ import {
 } from 'lucide-react';
 import { CaptureRecord } from '../../types/citrus';
 import { exportYoloDatasetZip, exportCapturesCsv, exportCapturesJson, triggerDownload, importDatasetOrImages } from '../../services/yoloExport';
+import { isDemoCapture, realCaptures } from '../../services/demo';
 import { getStorageStatus, requestPersistentStorage, formatBytes, StorageStatus } from '../../services/storage';
 
 interface LibraryViewProps {
@@ -14,6 +15,7 @@ interface LibraryViewProps {
   onDeleteCapture: (id: string) => void;
   onClearAll: () => void;
   onLoadDemoSamples: () => void;
+  onRemoveDemos?: () => Promise<void>;
   onImportCaptures?: (newCaptures: CaptureRecord[]) => Promise<void>;
 }
 
@@ -23,8 +25,11 @@ export const LibraryView: React.FC<LibraryViewProps> = ({
   onDeleteCapture,
   onClearAll,
   onLoadDemoSamples,
+  onRemoveDemos,
   onImportCaptures,
 }) => {
+  const demoCount = captures.filter(isDemoCapture).length;
+  const realCount = captures.length - demoCount; // lo que se exporta y entra a Rendimiento
   const [selectedCuartel, setSelectedCuartel] = useState<string>('all');
   const [isExportingZip, setIsExportingZip] = useState(false);
   const [exportProgress, setExportProgress] = useState(0);
@@ -81,7 +86,7 @@ export const LibraryView: React.FC<LibraryViewProps> = ({
 
   // Export YOLO dataset ZIP
   const handleExportZip = async () => {
-    if (captures.length === 0 || isExportingZip) return;
+    if (realCount === 0 || isExportingZip) return;
     setIsExportingZip(true);
     setExportProgress(10);
 
@@ -98,7 +103,7 @@ export const LibraryView: React.FC<LibraryViewProps> = ({
 
   // Export CSV
   const handleExportCsv = () => {
-    if (captures.length === 0) return;
+    if (realCount === 0) return;
     const csv = exportCapturesCsv(captures);
     // BOM UTF-8: sin él Excel muestra mal las tildes y la ñ (Árbol, Año...).
     const blob = new Blob(['\uFEFF', csv], { type: 'text/csv;charset=utf-8;' });
@@ -107,7 +112,7 @@ export const LibraryView: React.FC<LibraryViewProps> = ({
 
   // Export JSON con trazabilidad completa (sin imágenes: liviano)
   const handleExportJson = () => {
-    if (captures.length === 0) return;
+    if (realCount === 0) return;
     const blob = new Blob([exportCapturesJson(captures)], { type: 'application/json;charset=utf-8;' });
     triggerDownload(blob, `conteo_citricos_${new Date().toISOString().slice(0, 10)}.json`);
   };
@@ -120,7 +125,7 @@ export const LibraryView: React.FC<LibraryViewProps> = ({
         <div>
           <h2 className="text-xl font-bold text-white flex items-center gap-2">
             <span>Biblioteca de Muestreos</span>
-            <span className="text-xs text-slate-500 font-mono">({captures.length} capturas)</span>
+            <span className="text-xs text-slate-500 font-mono">({realCount} capturas{demoCount > 0 ? ` + ${demoCount} demo` : ''})</span>
           </h2>
           <p className="text-xs text-slate-400 mt-1">
             Imágenes de árboles, etiquetas de frutos y coordenadas GPS almacenadas localmente.
@@ -157,7 +162,7 @@ export const LibraryView: React.FC<LibraryViewProps> = ({
 
           <button
             onClick={handleExportCsv}
-            disabled={captures.length === 0}
+            disabled={realCount === 0}
             className="px-3.5 py-2 rounded-xl bg-slate-900 hover:bg-slate-800 border border-slate-700 text-xs font-semibold text-slate-200 flex items-center gap-1.5 disabled:opacity-40 transition-colors cursor-pointer"
           >
             <FileText className="w-4 h-4 text-emerald-400" />
@@ -166,7 +171,7 @@ export const LibraryView: React.FC<LibraryViewProps> = ({
 
           <button
             onClick={handleExportJson}
-            disabled={captures.length === 0}
+            disabled={realCount === 0}
             title="Incluye trazabilidad completa (modelo, versión, umbrales). Sin imágenes."
             className="px-3.5 py-2 rounded-xl bg-slate-900 hover:bg-slate-800 border border-slate-700 text-xs font-semibold text-slate-200 flex items-center gap-1.5 disabled:opacity-40 transition-colors cursor-pointer"
           >
@@ -176,7 +181,7 @@ export const LibraryView: React.FC<LibraryViewProps> = ({
 
           <button
             onClick={handleExportZip}
-            disabled={captures.length === 0 || isExportingZip}
+            disabled={realCount === 0 || isExportingZip}
             className="px-4 py-2 rounded-xl bg-amber-500 hover:bg-amber-400 text-slate-950 text-xs font-bold flex items-center gap-2 disabled:opacity-40 transition-all cursor-pointer shadow-md"
           >
             <Download className="w-4 h-4" />
@@ -218,6 +223,23 @@ export const LibraryView: React.FC<LibraryViewProps> = ({
               title="Pide al navegador que no borre las capturas si el teléfono se queda sin espacio"
             >
               Proteger datos
+            </button>
+          )}
+        </div>
+      )}
+
+      {demoCount > 0 && (
+        <div className="p-3 rounded-xl bg-sky-500/10 border border-sky-500/30 text-sky-200 text-xs flex flex-wrap items-center gap-x-3 gap-y-1.5">
+          <Sparkles className="w-4 h-4 shrink-0" />
+          <span>
+            Hay {demoCount} {demoCount === 1 ? 'muestra demo' : 'muestras demo'}. No se incluyen en el CSV, el JSON, el ZIP ni en Rendimiento.
+          </span>
+          {onRemoveDemos && (
+            <button
+              onClick={() => { if (confirm('¿Quitar las muestras demo? Tus capturas reales no se tocan.')) onRemoveDemos(); }}
+              className="underline underline-offset-2 hover:text-white cursor-pointer"
+            >
+              Quitar muestras demo
             </button>
           )}
         </div>
@@ -302,6 +324,11 @@ export const LibraryView: React.FC<LibraryViewProps> = ({
                   <div className="absolute inset-0 bg-gradient-to-t from-slate-950 via-transparent to-transparent opacity-70" />
 
                   {/* Count Badge */}
+                  {isDemoCapture(c) && (
+                    <div className="absolute top-3 left-3 px-2 py-0.5 rounded-md bg-sky-500/90 text-[10px] font-bold tracking-wide text-slate-950 shadow-md">
+                      DEMO
+                    </div>
+                  )}
                   <div className="absolute top-3 right-3 px-2.5 py-1 rounded-lg bg-slate-950/80 backdrop-blur-md border border-slate-700 text-xs font-mono font-bold text-amber-400 shadow-md">
                     {c.boxes.length} frutos
                   </div>
