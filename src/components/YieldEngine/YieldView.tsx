@@ -23,7 +23,7 @@ export const YieldView: React.FC<YieldViewProps> = ({ captures: allCaptures, onO
 
   const handleExportCsv = () => {
     const csv = exportCapturesCsv(captures);
-    const blob = new Blob([csv], { type: 'text/csv;charset=utf-8;' });
+    const blob = new Blob(['﻿', csv], { type: 'text/csv;charset=utf-8;' });
     triggerDownload(blob, `conteo_citricos_informe_${new Date().toISOString().slice(0, 10)}.csv`);
   };
 
