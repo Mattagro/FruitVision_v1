@@ -122,7 +122,10 @@ export const ManualView: React.FC<ManualViewProps> = ({ onNavigateTab }) => {
                 </div>
               </div>
               <p className="text-slate-300 pl-10 leading-relaxed">
-                Toca el botón <strong>"Instalar en Móvil"</strong> arriba en la pantalla, o en el menú de Chrome/Safari elige <strong>"Añadir a la pantalla de inicio"</strong>. La app quedará como un icono en tu teléfono y descargará los modelos a la memoria interna.
+                Toca el botón <strong>"Instalar en Móvil"</strong> arriba en la pantalla, o en el menú de Chrome/Safari elige <strong>"Añadir a la pantalla de inicio"</strong>. La app quedará como un icono en tu teléfono. <strong>Ábrela una vez con internet</strong> para que quede lista y luego funciona sin señal en el campo.
+              </p>
+              <p className="text-slate-300 pl-10 leading-relaxed">
+                <strong>Modelo YOLO (opcional, una sola vez):</strong> en la pestaña <em>Modelos YOLO</em> carga tu archivo ZIP (o <em>model.json</em> + archivos .bin + <em>labels.json</em>). El modelo queda <strong>guardado en este teléfono</strong> y se carga solo cada vez que abres la app, también sin conexión. Si algún día quieres cambiarlo, usa <em>Quitar modelo guardado</em>.
               </p>
             </div>
 
@@ -138,7 +141,7 @@ export const ManualView: React.FC<ManualViewProps> = ({ onNavigateTab }) => {
                 </div>
               </div>
               <p className="text-slate-300 pl-10 leading-relaxed">
-                Párate frente al árbol de manera que la copa ocupe la mayor parte de la pantalla. Verás que la cámara resalta cada naranja o limón con un <strong>recuadro con su porcentaje de certeza</strong>. Arriba verás el total de frutas contadas en tiempo real.
+                Párate frente al árbol de manera que la copa ocupe la mayor parte de la pantalla. Verás que la cámara resalta cada fruto con un recuadro, detectado por <strong>color</strong> (por eso conviene calibrar el color según la luz). Arriba verás el total contado en tiempo real. <em>La detección con modelo YOLO se aplica después, en el Anotador.</em>
               </p>
             </div>
 
@@ -154,7 +157,7 @@ export const ManualView: React.FC<ManualViewProps> = ({ onNavigateTab }) => {
                 </div>
               </div>
               <p className="text-slate-300 pl-10 leading-relaxed">
-                Al pulsar el botón amarillo <strong>Congelar & Anotar</strong>, la cámara toma la foto fija con máxima calidad y te lleva a la pantalla del <strong>Anotador</strong>. (O si tienes prisa, pulsa <strong>Guardar Rápido</strong> para guardarla directamente).
+                Al pulsar el botón amarillo <strong>Congelar & Anotar</strong>, la cámara toma la foto fija con máxima calidad y te lleva a la pantalla del <strong>Anotador</strong>. (O si tienes prisa, pulsa <strong>Guardado Rápido Directo</strong> para guardarla de inmediato). <strong>El N° de árbol avanza solo</strong> en la siguiente captura; antes de guardar revisa predio, cuartel, hilera, árbol y cara.
               </p>
             </div>
 
@@ -173,7 +176,8 @@ export const ManualView: React.FC<ManualViewProps> = ({ onNavigateTab }) => {
                 En el Anotador puedes ver los cuadros detectados:
                 <br />• <strong>¿Faltó una fruta oculta?</strong> Toca el botón <em>Dibujar</em> y arrastra el dedo sobre ella para agregarla.
                 <br />• <strong>¿Marcó una hoja amarilla por error?</strong> Toca el cuadro y pulsa el icono de la <em>Papelera</em> para quitarla.
-                <br />• Al terminar, pulsa <strong>Guardar Captura</strong>. Se guardará con tu GPS y fecha.
+                <br />• <strong>¿Tienes un modelo YOLO cargado?</strong> Pulsa <em>YOLO TF.js</em>: reemplaza todos los cuadros por los del modelo (puedes deshacer).
+                <br />• Al terminar, pulsa <strong>Guardar Captura</strong>. Se guardará con tu GPS, fecha y la trazabilidad (método, versión y modelo usado).
               </p>
             </div>
 
@@ -189,7 +193,7 @@ export const ManualView: React.FC<ManualViewProps> = ({ onNavigateTab }) => {
                 </div>
               </div>
               <p className="text-slate-300 pl-10 leading-relaxed">
-                Ve a la pestaña <strong>Rendimiento</strong>. A medida que vayas midiendo más árboles del cuartel, el sistema te indicará en color verde si ya tienes una muestra estadísticamente representativa y te dará el volumen estimado de tu cosecha.
+                Ve a la pestaña <strong>Rendimiento</strong>. A medida que vayas midiendo más árboles del cuartel, el sistema te indicará en color verde si ya tienes una muestra estadísticamente representativa y te dará el volumen estimado de tu cosecha. Las muestras demo no entran en este cálculo.
               </p>
             </div>
 
@@ -229,8 +233,12 @@ export const ManualView: React.FC<ManualViewProps> = ({ onNavigateTab }) => {
                   <span>Inmoviliza la imagen en alta resolución y la traslada al anotador para guardarla formalmente.</span>
                 </div>
                 <div className="p-3 rounded-xl bg-slate-950 border border-slate-800">
-                  <span className="font-bold text-white block mb-1">Botón "Guardar Rápido"</span>
-                  <span>Guarda la foto y los conteos directamente en la memoria del teléfono sin pasar por la edición manual.</span>
+                  <span className="font-bold text-white block mb-1">Botón "Guardado Rápido Directo"</span>
+                  <span>Guarda la foto y los conteos directamente en la memoria del teléfono sin pasar por la edición manual. El N° de árbol avanza solo.</span>
+                </div>
+                <div className="p-3 rounded-xl bg-slate-950 border border-slate-800 sm:col-span-2">
+                  <span className="font-bold text-white block mb-1">Importante: aquí el conteo es por color</span>
+                  <span>La cámara en vivo cuenta por color (HSV). El modelo YOLO se usa en el Anotador con el botón <em>YOLO TF.js</em>.</span>
                 </div>
               </div>
             </div>
@@ -251,7 +259,8 @@ export const ManualView: React.FC<ManualViewProps> = ({ onNavigateTab }) => {
                 <li><strong>Modo Mover (Pan):</strong> Te permite desplazarte por la foto sin crear cuadros accidentales.</li>
                 <li><strong>Modo Dibujar (Draw):</strong> Arrastra tu dedo sobre una fruta para trazar un nuevo recuadro manual.</li>
                 <li><strong>Modo Seleccionar:</strong> Toca cualquier recuadro para ver sus dimensiones o eliminarlo con la papelera.</li>
-                <li><strong>Ficha de Datos del Árbol (Panel derecho):</strong> Aquí puedes cambiar el nombre del Cuartel, el número de hilera y el número de árbol antes de guardar.</li>
+                <li><strong>Ficha de Datos del Árbol (Panel derecho):</strong> Aquí puedes cambiar predio, cuartel, hilera, número de árbol y cara (N, S, E, O o Total) antes de guardar. Si repites el mismo árbol y cara, la app avisa para no duplicar.</li>
+                <li><strong>YOLO TF.js:</strong> detecta con el modelo cargado en <em>Modelos YOLO</em> y reemplaza todos los cuadros (hay deshacer). Si cambias de modelo, vuelve a detectar antes de guardar.</li>
               </ul>
             </div>
 
@@ -281,6 +290,9 @@ export const ManualView: React.FC<ManualViewProps> = ({ onNavigateTab }) => {
                   <span>Un indicador que te dice si llevas suficientes árboles contados para tener un 95% de seguridad en la estimación.</span>
                 </div>
               </div>
+              <p className="text-slate-400 leading-relaxed">
+                Las cifras grandes del encabezado usan los valores del simulador (factor, peso y densidad que ajustas ahí); la tabla por cuartel usa los valores guardados en cada captura. <strong>"Exportar Informe CSV"</strong> descarga el CSV de capturas (con BOM, abre bien en Excel).
+              </p>
             </div>
 
             {/* Biblioteca */}
@@ -301,14 +313,29 @@ export const ManualView: React.FC<ManualViewProps> = ({ onNavigateTab }) => {
                     <FileText className="w-4 h-4 text-emerald-400" />
                     <span>Botón "CSV" (Excel)</span>
                   </span>
-                  <span>Descarga en un clic la planilla con todos los conteos, GPS y estimaciones de kilos por cuartel lista para abrir en Excel o WhatsApp.</span>
+                  <span>Planilla con conteos, GPS y trazabilidad (Método, App_Version, Modelo, Modelo_Huella, Conteo_Manual_Ref, cajas por origen y parámetros YOLO). Abre bien en Excel con tildes.</span>
+                </div>
+                <div className="p-3 rounded-xl bg-slate-950 border border-slate-800">
+                  <span className="font-bold text-white flex items-center gap-1.5 mb-1">
+                    <FileText className="w-4 h-4 text-sky-400" />
+                    <span>Botón "JSON"</span>
+                  </span>
+                  <span>Mismos datos y trazabilidad en formato estructurado (sin imágenes), para análisis o respaldo.</span>
                 </div>
                 <div className="p-3 rounded-xl bg-slate-950 border border-slate-800">
                   <span className="font-bold text-white flex items-center gap-1.5 mb-1">
                     <Download className="w-4 h-4 text-amber-400" />
-                    <span>Botón "Exportar YOLO (ZIP)"</span>
+                    <span>Botón "Descargar Dataset YOLO (ZIP)"</span>
                   </span>
-                  <span>Empaqueta todas las fotos y coordenadas de cada fruto para entrenar modelos de Inteligencia Artificial más avanzados.</span>
+                  <span>Empaqueta las fotos y coordenadas de cada fruto para entrenar modelos de Inteligencia Artificial más avanzados.</span>
+                </div>
+                <div className="p-3 rounded-xl bg-slate-950 border border-slate-800">
+                  <span className="font-bold text-white block mb-1">Barra de almacenamiento y "Proteger datos"</span>
+                  <span>Muestra cuánto espacio usan tus capturas. Pulsa <em>Proteger datos</em> para pedir al teléfono que no las borre. Respalda con CSV/JSON/ZIP con regularidad.</span>
+                </div>
+                <div className="p-3 rounded-xl bg-slate-950 border border-slate-800 sm:col-span-2">
+                  <span className="font-bold text-white block mb-1">Muestras demo</span>
+                  <span>Las capturas de ejemplo llevan la etiqueta DEMO y <strong>no se incluyen</strong> en CSV, JSON, ZIP ni Rendimiento. Quítalas con <em>Quitar muestras demo</em>; tus capturas reales no se tocan.</span>
                 </div>
               </div>
             </div>
@@ -459,7 +486,37 @@ export const ManualView: React.FC<ManualViewProps> = ({ onNavigateTab }) => {
               <span>¿Cómo abro los datos en mi computador en Excel?</span>
             </h4>
             <p className="text-slate-300 leading-relaxed pl-6">
-              Entra a la pestaña <strong>Biblioteca</strong>, pulsa el botón <strong>CSV</strong>. Se descargará un archivo que puedes enviarte por correo, WhatsApp o cable USB y abrir directamente con doble clic en Microsoft Excel o Google Sheets.
+              Entra a la pestaña <strong>Biblioteca</strong>, pulsa el botón <strong>CSV</strong>. Se descargará un archivo que puedes enviarte por correo, WhatsApp o cable USB y abrir con Excel o Google Sheets. Si en Excel con configuración regional en español las columnas salen juntas, usa <em>Datos → Desde texto/CSV</em>.
+            </p>
+          </div>
+
+          <div className="p-4 rounded-2xl bg-slate-900 border border-slate-800 space-y-2">
+            <h4 className="font-bold text-white text-xs flex items-center gap-2">
+              <HelpCircle className="w-4 h-4 text-amber-400" />
+              <span>¿El modelo YOLO se pierde al cerrar la app o sin internet?</span>
+            </h4>
+            <p className="text-slate-300 leading-relaxed pl-6">
+              No. Al cargarlo queda guardado en el teléfono (<em>Guardado en este teléfono</em>) y se restaura solo al abrir, sin conexión. Si el navegador no pudo guardarlo, <em>Modelos YOLO</em> muestra el aviso. En iPhone/Safari el sistema puede borrar datos de sitios poco usados: conserva el ZIP del modelo a mano.
+            </p>
+          </div>
+
+          <div className="p-4 rounded-2xl bg-slate-900 border border-slate-800 space-y-2">
+            <h4 className="font-bold text-white text-xs flex items-center gap-2">
+              <HelpCircle className="w-4 h-4 text-amber-400" />
+              <span>¿Cómo valido que el conteo es confiable?</span>
+            </h4>
+            <p className="text-slate-300 leading-relaxed pl-6">
+              En 20–30 árboles, cuenta a mano los frutos visibles y anótalos en <em>Conteo_Manual_Ref</em>; compara con el conteo de la app y calcula el error medio (MAE) y el sesgo. Si la app subcuenta de forma sistemática (≥30% en fruto pequeño), no se arregla con calibración: requiere reentrenar el modelo con fotos de tus huertos.
+            </p>
+          </div>
+
+          <div className="p-4 rounded-2xl bg-slate-900 border border-slate-800 space-y-2">
+            <h4 className="font-bold text-white text-xs flex items-center gap-2">
+              <HelpCircle className="w-4 h-4 text-amber-400" />
+              <span>¿Cómo sé que tengo la última versión de la app?</span>
+            </h4>
+            <p className="text-slate-300 leading-relaxed pl-6">
+              Mira el número de versión en el encabezado (ej. v2.3.3). Para actualizar: con internet, cierra la app por completo y ábrela dos veces. La versión usada en cada captura queda en la columna <em>App_Version</em>.
             </p>
           </div>
 
