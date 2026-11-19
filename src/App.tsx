@@ -18,6 +18,7 @@ import {
 import { getInitialDemoCaptures } from './services/demoData';
 import { extractExifFromBlob, getCurrentDeviceLocation } from './services/exif';
 import { colorDetector } from './services/vision/colorDetector';
+import { buildProvenance } from './services/provenance';
 
 export default function App() {
   const [activeTab, setActiveTab] = useState<ActiveTab>('camera');
@@ -153,10 +154,15 @@ export default function App() {
       boxes,
       metadata: newMeta,
       count: boxes.length,
+      provenance: buildProvenance(boxes),
     };
 
-    await dbService.saveCapture(newRecord);
-    setCaptures(prev => [newRecord, ...prev]);
+    try {
+      await dbService.saveCapture(newRecord);
+      setCaptures(prev => [newRecord, ...prev]);
+    } catch (e) {
+      alert(e instanceof Error ? e.message : `No se pudo guardar la captura: ${String(e)}`);
+    }
   };
 
   // Save Capture from Canvas Annotator
@@ -175,9 +181,15 @@ export default function App() {
       boxes,
       metadata,
       count: boxes.length,
+      provenance: buildProvenance(boxes, captures.find(c => c.id === metadata.id)?.provenance),
     };
 
-    await dbService.saveCapture(record);
+    try {
+      await dbService.saveCapture(record);
+    } catch (e) {
+      alert(e instanceof Error ? e.message : `No se pudo guardar la captura: ${String(e)}`);
+      return;
+    }
     setCaptures(prev => {
       const idx = prev.findIndex(c => c.id === record.id);
       if (idx >= 0) {

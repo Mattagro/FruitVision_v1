@@ -63,6 +63,27 @@ export interface CaptureMetadata {
   notes?: string;
 }
 
+/**
+ * Trazabilidad de una captura: con qué versión de la app, modelo y umbrales
+ * se generó el conteo. Permite reproducir y auditar una validación.
+ * Opcional: las capturas antiguas o importadas no la tienen.
+ */
+export interface CaptureProvenance {
+  appVersion: string;
+  savedAt: number;                       // epoch ms del guardado
+  method: 'yolo' | 'color' | 'mixed' | 'manual' | 'none';
+  boxesBySource: { color: number; yolo: number; manual: number };
+  model?: {                              // solo si hay cajas de origen YOLO
+    name: string;
+    fingerprint?: string;                // SHA-256 (12 hex) de model.json + .bin
+    sizeBytes?: number;
+    inputSize: number;
+    classes: string[];
+    modelType: string;
+  };
+  yoloParams?: { conf: number; iou: number; tileGrid: 1 | 2 };
+}
+
 export interface CaptureRecord {
   id: string;
   imageDataUrl: string;
@@ -71,6 +92,7 @@ export interface CaptureRecord {
   boxes: BoundingBox[];
   metadata: CaptureMetadata;
   count: number;
+  provenance?: CaptureProvenance;
 }
 
 export interface HsvFilterParams {
@@ -98,6 +120,8 @@ export interface YoloModelConfig {
   isWarmedUp: boolean;
   loadError?: string;
   activeModelName: string;
+  modelFingerprint?: string;  // SHA-256 (12 hex) de model.json + .bin; undefined en el modelo demo
+  modelSizeBytes?: number;
 }
 
 export interface YieldBlockStats {

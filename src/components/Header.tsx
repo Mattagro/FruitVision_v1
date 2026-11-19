@@ -1,6 +1,7 @@
 import React from 'react';
 import { Camera, Eye, Sliders, BarChart3, FolderArchive, Cpu, BookOpen } from 'lucide-react';
 import { PWAInstallButton } from './PWAInstallButton';
+import { APP_VERSION } from '../version';
 
 export type ActiveTab = 'camera' | 'annotator' | 'tuner' | 'yield' | 'library' | 'models' | 'manual';
 
@@ -28,6 +29,9 @@ export const Header: React.FC<HeaderProps> = ({
           </div>
           <span className="text-lg font-bold tracking-tight text-white whitespace-nowrap">
             CitrusVision
+          </span>
+          <span className="text-[10px] font-mono text-slate-500 whitespace-nowrap" title="Versión de la app">
+            v{APP_VERSION}
           </span>
         </div>
 

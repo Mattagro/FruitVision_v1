@@ -1,11 +1,12 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { 
   FolderArchive, Download, Trash2, 
   MapPin, Calendar, Trees, Eye, 
-  Sparkles, FileText, Check, Upload, Loader2 
+  Sparkles, FileText, Check, Upload, Loader2, FileJson, HardDrive, AlertTriangle 
 } from 'lucide-react';
 import { CaptureRecord } from '../../types/citrus';
-import { exportYoloDatasetZip, exportCapturesCsv, triggerDownload, importDatasetOrImages } from '../../services/yoloExport';
+import { exportYoloDatasetZip, exportCapturesCsv, exportCapturesJson, triggerDownload, importDatasetOrImages } from '../../services/yoloExport';
+import { getStorageStatus, requestPersistentStorage, formatBytes, StorageStatus } from '../../services/storage';
 
 interface LibraryViewProps {
   captures: CaptureRecord[];
@@ -29,6 +30,20 @@ export const LibraryView: React.FC<LibraryViewProps> = ({
   const [exportProgress, setExportProgress] = useState(0);
   const [isImporting, setIsImporting] = useState(false);
   const [importFeedback, setImportFeedback] = useState<string | null>(null);
+
+  const [storage, setStorage] = useState<StorageStatus | null>(null);
+
+  // Estado del almacenamiento: se refresca al cambiar la cantidad de capturas.
+  useEffect(() => {
+    let cancelled = false;
+    getStorageStatus().then(st => { if (!cancelled) setStorage(st); });
+    return () => { cancelled = true; };
+  }, [captures.length]);
+
+  const handleRequestPersistence = async () => {
+    await requestPersistentStorage();
+    setStorage(await getStorageStatus());
+  };
 
   const importInputRef = React.useRef<HTMLInputElement>(null);
 
@@ -85,8 +100,16 @@ export const LibraryView: React.FC<LibraryViewProps> = ({
   const handleExportCsv = () => {
     if (captures.length === 0) return;
     const csv = exportCapturesCsv(captures);
-    const blob = new Blob([csv], { type: 'text/csv;charset=utf-8;' });
+    // BOM UTF-8: sin él Excel muestra mal las tildes y la ñ (Árbol, Año...).
+    const blob = new Blob(['\uFEFF', csv], { type: 'text/csv;charset=utf-8;' });
     triggerDownload(blob, `conteo_citricos_${new Date().toISOString().slice(0, 10)}.csv`);
+  };
+
+  // Export JSON con trazabilidad completa (sin imágenes: liviano)
+  const handleExportJson = () => {
+    if (captures.length === 0) return;
+    const blob = new Blob([exportCapturesJson(captures)], { type: 'application/json;charset=utf-8;' });
+    triggerDownload(blob, `conteo_citricos_${new Date().toISOString().slice(0, 10)}.json`);
   };
 
   return (
@@ -142,6 +165,16 @@ export const LibraryView: React.FC<LibraryViewProps> = ({
           </button>
 
           <button
+            onClick={handleExportJson}
+            disabled={captures.length === 0}
+            title="Incluye trazabilidad completa (modelo, versión, umbrales). Sin imágenes."
+            className="px-3.5 py-2 rounded-xl bg-slate-900 hover:bg-slate-800 border border-slate-700 text-xs font-semibold text-slate-200 flex items-center gap-1.5 disabled:opacity-40 transition-colors cursor-pointer"
+          >
+            <FileJson className="w-4 h-4 text-sky-400" />
+            <span>JSON</span>
+          </button>
+
+          <button
             onClick={handleExportZip}
             disabled={captures.length === 0 || isExportingZip}
             className="px-4 py-2 rounded-xl bg-amber-500 hover:bg-amber-400 text-slate-950 text-xs font-bold flex items-center gap-2 disabled:opacity-40 transition-all cursor-pointer shadow-md"
@@ -151,6 +184,44 @@ export const LibraryView: React.FC<LibraryViewProps> = ({
           </button>
         </div>
       </div>
+
+      {/* Almacenamiento local: aviso temprano antes de que el navegador rechace guardados */}
+      {storage?.supported && (
+        <div
+          className={`p-3 rounded-xl border text-xs flex flex-wrap items-center gap-x-3 gap-y-1.5 ${
+            storage.level === 'critical'
+              ? 'bg-red-500/10 border-red-500/40 text-red-300'
+              : storage.level === 'warning'
+              ? 'bg-amber-500/10 border-amber-500/40 text-amber-300'
+              : 'bg-slate-900 border-slate-800 text-slate-400'
+          }`}
+        >
+          {storage.level === 'ok'
+            ? <HardDrive className="w-4 h-4 shrink-0" />
+            : <AlertTriangle className="w-4 h-4 shrink-0" />}
+          <span className="font-mono">
+            Almacenamiento: {formatBytes(storage.usageBytes)} de {formatBytes(storage.quotaBytes)} ({storage.percent.toFixed(1)}%)
+          </span>
+          <div className="flex-1 min-w-[80px] h-1.5 rounded-full bg-slate-800 overflow-hidden">
+            <div
+              className={`h-full ${storage.level === 'critical' ? 'bg-red-500' : storage.level === 'warning' ? 'bg-amber-500' : 'bg-emerald-500'}`}
+              style={{ width: `${Math.min(100, storage.percent)}%` }}
+            />
+          </div>
+          {storage.level !== 'ok' && (
+            <span>Exporta (CSV/JSON/ZIP) y elimina capturas antiguas para evitar que falle el guardado.</span>
+          )}
+          {storage.persisted === false && (
+            <button
+              onClick={handleRequestPersistence}
+              className="underline underline-offset-2 hover:text-white cursor-pointer"
+              title="Pide al navegador que no borre las capturas si el teléfono se queda sin espacio"
+            >
+              Proteger datos
+            </button>
+          )}
+        </div>
+      )}
 
       {importFeedback && (
         <div className="p-3 rounded-xl bg-emerald-500/10 border border-emerald-500/30 text-emerald-300 text-xs flex items-center gap-2">
