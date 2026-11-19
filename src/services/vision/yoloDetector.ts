@@ -8,6 +8,25 @@ export interface YoloInferenceResult {
   tilesProcessed: number;
 }
 
+/**
+ * Huella del modelo: SHA-256 (12 hex) de model.json + todos los .bin, en orden estable.
+ * Necesaria porque dos reentrenamientos con la misma arquitectura producen el mismo
+ * model.json y solo se distinguen por los pesos. Devuelve undefined si no hay
+ * crypto.subtle (contexto no seguro, p. ej. http en red local): no es crítico.
+ */
+async function computeModelFingerprint(files: File[]): Promise<{ fingerprint?: string; sizeBytes: number }> {
+  const sizeBytes = files.reduce((acc, f) => acc + f.size, 0);
+  try {
+    if (!globalThis.crypto?.subtle) return { sizeBytes };
+    const ordered = [...files].sort((a, b) => a.name.localeCompare(b.name));
+    const digest = await crypto.subtle.digest('SHA-256', await new Blob(ordered).arrayBuffer());
+    const hex = Array.from(new Uint8Array(digest), b => b.toString(16).padStart(2, '0')).join('');
+    return { fingerprint: hex.slice(0, 12), sizeBytes };
+  } catch {
+    return { sizeBytes };
+  }
+}
+
 export class YoloDetectorService {
   private model: tf.GraphModel | null = null;
   private warnedNormalized = false;
@@ -198,6 +217,9 @@ export class YoloDetectorService {
       this.config.isLoaded = true;
       this.config.modelType = 'yolov8';
       this.config.activeModelName = jsonFile.name.replace('.json', '');
+      const { fingerprint, sizeBytes } = await computeModelFingerprint(normalizedFiles);
+      this.config.modelFingerprint = fingerprint;
+      this.config.modelSizeBytes = sizeBytes;
 
       // Warmup tensor
       await this.warmup();

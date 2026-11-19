@@ -124,7 +124,19 @@ print("Entrenamiento completado exitosamente.")
 }
 
 /**
- * Generate CSV file of all field captures and yield estimates
+ * Escapa una celda de texto para CSV (RFC 4180) y neutraliza "inyección de fórmulas":
+ * un texto libre (p. ej. Notas) que empiece con = + - @ se interpretaría como fórmula en Excel.
+ */
+export function csvText(value: unknown): string {
+  let t = value === null || value === undefined ? '' : String(value);
+  if (/^[=+\-@\t\r]/.test(t)) t = `'${t}`;
+  return `"${t.replace(/"/g, '""')}"`;
+}
+
+/**
+ * Exporta las capturas a CSV (UTF-8; el llamador agrega BOM si es para Excel).
+ * Las columnas originales se mantienen en su orden; las nuevas (trazabilidad y
+ * validación) van al final para no romper modelos de Power BI ya construidos.
  */
 export function exportCapturesCsv(captures: CaptureRecord[]): string {
   const headers = [
@@ -147,6 +159,19 @@ export function exportCapturesCsv(captures: CaptureRecord[]): string {
     'Densidad_Arboles_ha',
     'Ton_Estimadas_ha',
     'Notas',
+    // --- Validación y trazabilidad ---
+    'Conteo_Manual_Ref',   // vacío: completar en Excel con el conteo manual para validar
+    'Metodo',
+    'Cajas_Color',
+    'Cajas_YOLO',
+    'Cajas_Manual',
+    'App_Version',
+    'Modelo',
+    'Modelo_Huella',
+    'Modelo_Tamano_MB',
+    'YOLO_Conf',
+    'YOLO_IoU',
+    'Teselado',
   ];
 
   const rows = captures.map(c => {
@@ -156,17 +181,18 @@ export function exportCapturesCsv(captures: CaptureRecord[]): string {
     const projectedFruits = Math.round(visibleCount * m.foliageCalibration);
     const kgPerTree = Number(((projectedFruits * m.fruitWeightGram) / 1000).toFixed(2));
     const tonPerHa = Number(((kgPerTree * m.treeDensityHa) / 1000).toFixed(2));
+    const pv = c.provenance;
 
     return [
-      `"${c.id}"`,
-      `"${dateStr}"`,
-      `"${m.predio.replace(/"/g, '""')}"`,
-      `"${m.cuartel.replace(/"/g, '""')}"`,
-      `"${m.hilera}"`,
-      `"${m.arbol}"`,
-      `"${m.cara}"`,
-      `"${m.variedad}"`,
-      `"${m.etapa}"`,
+      csvText(c.id),
+      csvText(dateStr),
+      csvText(m.predio),
+      csvText(m.cuartel),
+      csvText(m.hilera),
+      csvText(m.arbol),
+      csvText(m.cara),
+      csvText(m.variedad),
+      csvText(m.etapa),
       m.gps?.latitude ?? '',
       m.gps?.longitude ?? '',
       visibleCount,
@@ -176,11 +202,39 @@ export function exportCapturesCsv(captures: CaptureRecord[]): string {
       kgPerTree,
       m.treeDensityHa,
       tonPerHa,
-      `"${(m.notes || '').replace(/"/g, '""')}"`,
+      csvText(m.notes),
+      '',
+      csvText(pv?.method),
+      pv?.boxesBySource.color ?? '',
+      pv?.boxesBySource.yolo ?? '',
+      pv?.boxesBySource.manual ?? '',
+      csvText(pv?.appVersion),
+      csvText(pv?.model?.name),
+      csvText(pv?.model?.fingerprint),
+      pv?.model?.sizeBytes != null ? Number((pv.model.sizeBytes / 1024 ** 2).toFixed(2)) : '',
+      pv?.yoloParams?.conf ?? '',
+      pv?.yoloParams?.iou ?? '',
+      pv?.yoloParams ? `${pv.yoloParams.tileGrid}x${pv.yoloParams.tileGrid}` : '',
     ].join(',');
   });
 
-  return [headers.join(','), ...rows].join('\n');
+  return [headers.join(','), ...rows].join('\r\n');
+}
+
+/**
+ * Exporta las capturas a JSON con trazabilidad completa. Por defecto omite las
+ * imágenes (data URL) para que el archivo sea liviano; con includeImages las incluye.
+ */
+export function exportCapturesJson(captures: CaptureRecord[], includeImages = false): string {
+  const records = captures.map(c => {
+    const { imageDataUrl, ...rest } = c;
+    return includeImages ? c : rest;
+  });
+  return JSON.stringify(
+    { exportedAt: new Date().toISOString(), schema: 'citrusvision.captures.v1', count: records.length, captures: records },
+    null,
+    2
+  );
 }
 
 /**

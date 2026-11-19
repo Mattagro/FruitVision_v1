@@ -47,6 +47,18 @@ export const DEFAULT_ORCHARD_METADATA: Omit<CaptureMetadata, 'id' | 'timestamp'>
   notes: '',
 };
 
+/** Convierte errores de IndexedDB (sobre todo cuota llena) en un mensaje accionable. */
+function toFriendlyStorageError(err: unknown): Error {
+  const name = (err as { name?: string } | null)?.name;
+  if (name === 'QuotaExceededError') {
+    return new Error(
+      'Almacenamiento lleno: no se pudo guardar la captura. Exporta tus capturas (CSV/JSON o ZIP) desde la Biblioteca y elimina las que ya no necesites.'
+    );
+  }
+  const msg = (err as { message?: string } | null)?.message;
+  return new Error(`No se pudo guardar la captura${msg ? `: ${msg}` : '.'}`);
+}
+
 class CitrusDatabase {
   private dbPromise: Promise<IDBDatabase> | null = null;
 
@@ -96,10 +108,15 @@ class CitrusDatabase {
     const db = await this.getDB();
     return new Promise((resolve, reject) => {
       const tx = db.transaction(STORE_CAPTURES, 'readwrite');
-      const store = tx.objectStore(STORE_CAPTURES);
-      const req = store.put(capture);
-      req.onsuccess = () => resolve();
-      req.onerror = () => reject(req.error);
+      // Resolver en oncomplete (commit real): una cuota llena puede fallar después de req.onsuccess.
+      tx.oncomplete = () => resolve();
+      tx.onerror = () => reject(toFriendlyStorageError(tx.error));
+      tx.onabort = () => reject(toFriendlyStorageError(tx.error));
+      try {
+        tx.objectStore(STORE_CAPTURES).put(capture);
+      } catch (e) {
+        reject(toFriendlyStorageError(e));
+      }
     });
   }
 
