@@ -185,6 +185,7 @@ export function getInitialDemoCaptures(): CaptureRecord[] {
   const lemonData = createSyntheticCitrusImage('lemon');
 
   const orangeCapture: CaptureRecord = {
+    isDemo: true,
     id: 'demo_capture_orange_01',
     imageDataUrl: orangeData.dataUrl,
     width: 960,
@@ -214,6 +215,7 @@ export function getInitialDemoCaptures(): CaptureRecord[] {
   };
 
   const lemonCapture: CaptureRecord = {
+    isDemo: true,
     id: 'demo_capture_lemon_02',
     imageDataUrl: lemonData.dataUrl,
     width: 960,
