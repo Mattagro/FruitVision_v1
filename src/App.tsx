@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useRef } from 'react';
+import React, { useState, useEffect, useRef, useMemo } from 'react';
 import { Header, ActiveTab } from './components/Header';
 import { LiveCameraHUD } from './components/LiveCamera/LiveCameraHUD';
 import { CanvasAnnotator } from './components/Annotator/CanvasAnnotator';
@@ -20,6 +20,7 @@ import { isDemoCapture, realCaptures } from './services/demo';
 import { extractExifFromBlob, getCurrentDeviceLocation } from './services/exif';
 import { colorDetector } from './services/vision/colorDetector';
 import { buildProvenance } from './services/provenance';
+import { resolveTreeConflict } from './services/treeNumber';
 import { yoloDetector } from './services/vision/yoloDetector';
 
 export default function App() {
@@ -38,6 +39,19 @@ export default function App() {
 
   // HSV Filter parameters
   const [hsvParams, setHsvParams] = useState<HsvFilterParams>(DEFAULT_HSV_ORANGE);
+
+  // Datos con que se creará la PRÓXIMA captura: si el árbol indicado ya está guardado
+  // (mismo predio, cuartel, hilera, árbol y cara), avanza al siguiente número libre.
+  // Se calcula sin modificar currentMetadata, para no alterar una captura abierta en el Anotador.
+  const nextMeta = useMemo(() => resolveTreeConflict(currentMetadata, captures), [currentMetadata, captures]);
+
+  const [toast, setToast] = useState<string | null>(null);
+  const toastTimer = useRef<number | undefined>(undefined);
+  const showToast = (msg: string) => {
+    setToast(msg);
+    window.clearTimeout(toastTimer.current);
+    toastTimer.current = window.setTimeout(() => setToast(null), 4000);
+  };
 
   // Hidden file input for photo upload
   const fileInputRef = useRef<HTMLInputElement>(null);
@@ -98,7 +112,7 @@ export default function App() {
 
       // Create new capture metadata
       const newMeta: CaptureMetadata = {
-        ...currentMetadata,
+        ...nextMeta.meta,
         id: `cap_${Date.now()}_${Math.random().toString(36).slice(2, 6)}`,
         timestamp: exif.timestamp || Date.now(),
         gps: exif.latitude && exif.longitude
@@ -115,6 +129,7 @@ export default function App() {
         setCurrentBoxes(detection.boxes);
         setCurrentMetadata(newMeta);
         setActiveTab('annotator');
+        if (nextMeta.advanced) showToast(`El Árbol ${currentMetadata.arbol} ya estaba guardado: esta foto queda como Árbol ${newMeta.arbol}.`);
       };
     };
     reader.readAsDataURL(file);
@@ -131,7 +146,7 @@ export default function App() {
     _height: number
   ) => {
     const newMeta: CaptureMetadata = {
-      ...currentMetadata,
+      ...nextMeta.meta,
       id: `cap_${Date.now()}`,
       timestamp: Date.now(),
     };
@@ -139,6 +154,7 @@ export default function App() {
     setCurrentBoxes(boxes);
     setCurrentMetadata(newMeta);
     setActiveTab('annotator');
+    if (nextMeta.advanced) showToast(`El Árbol ${currentMetadata.arbol} ya estaba guardado: esta captura queda como Árbol ${newMeta.arbol}.`);
   };
 
   // Live Camera: Quick Save directly to IndexedDB
@@ -149,7 +165,7 @@ export default function App() {
     height: number
   ) => {
     const newMeta: CaptureMetadata = {
-      ...currentMetadata,
+      ...nextMeta.meta,
       id: `cap_${Date.now()}`,
       timestamp: Date.now(),
     };
@@ -168,6 +184,7 @@ export default function App() {
     try {
       await dbService.saveCapture(newRecord);
       setCaptures(prev => [newRecord, ...prev]);
+      showToast(`Guardado: ${newMeta.cuartel || 'Cuartel'} · Hilera ${newMeta.hilera} · Árbol ${newMeta.arbol}${newMeta.cara !== 'Total' ? ` (cara ${newMeta.cara})` : ''}`);
     } catch (e) {
       alert(e instanceof Error ? e.message : `No se pudo guardar la captura: ${String(e)}`);
     }
@@ -287,6 +304,15 @@ export default function App() {
         className="hidden"
       />
 
+      {toast && (
+        <div
+          role="status"
+          className="fixed bottom-20 left-1/2 -translate-x-1/2 z-50 max-w-[92vw] px-4 py-2.5 rounded-xl bg-slate-800 border border-emerald-500/40 text-emerald-200 text-xs font-medium shadow-xl pointer-events-none"
+        >
+          {toast}
+        </div>
+      )}
+
       {/* Top Bar Header */}
       <Header
         activeTab={activeTab}
@@ -300,7 +326,7 @@ export default function App() {
         {activeTab === 'camera' && (
           <LiveCameraHUD
             hsvParams={hsvParams}
-            metadata={currentMetadata}
+            metadata={nextMeta.meta}
             onFreezeFrame={handleFreezeFromCamera}
             onQuickSave={handleQuickSaveFromCamera}
             onLoadDemoImage={handleLoadDemoSamples}
