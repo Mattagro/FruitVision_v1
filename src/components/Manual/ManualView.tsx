@@ -141,7 +141,7 @@ export const ManualView: React.FC<ManualViewProps> = ({ onNavigateTab }) => {
                 </div>
               </div>
               <p className="text-slate-300 pl-10 leading-relaxed">
-                Párate frente al árbol de manera que la copa ocupe la mayor parte de la pantalla. Verás que la cámara resalta cada fruto con un recuadro, detectado por <strong>color</strong> (por eso conviene calibrar el color según la luz). Arriba verás el total contado en tiempo real. <em>La detección con modelo YOLO se aplica después, en el Anotador.</em>
+                Párate frente al árbol de manera que la copa ocupe la mayor parte de la pantalla. Arriba a la izquierda elige el detector: <strong>YOLO</strong> (tu modelo, recuadros verdes; es el modo por defecto si ya cargaste uno) o <strong>Color</strong> (recuadros ámbar; sensible a la luz, al pasto seco y no ve fruta verde). Con YOLO el contador se suaviza (mediana de los últimos cuadros) y va a pocos cuadros por segundo.
               </p>
             </div>
 
@@ -237,8 +237,8 @@ export const ManualView: React.FC<ManualViewProps> = ({ onNavigateTab }) => {
                   <span>Guarda la foto y los conteos directamente en la memoria del teléfono sin pasar por la edición manual. El N° de árbol avanza solo.</span>
                 </div>
                 <div className="p-3 rounded-xl bg-slate-950 border border-slate-800 sm:col-span-2">
-                  <span className="font-bold text-white block mb-1">Importante: aquí el conteo es por color</span>
-                  <span>La cámara en vivo cuenta por color (HSV). El modelo YOLO se usa en el Anotador con el botón <em>YOLO TF.js</em>.</span>
+                  <span className="font-bold text-white block mb-1">Selector Color / YOLO</span>
+                  <span>Con un modelo cargado (<em>Modelos YOLO</em>) la cámara usa YOLO por defecto; sin modelo solo hay Color. Si el teléfono tarda más de 2 s por cuadro, la app vuelve sola a Color y lo avisa: en ese caso usa <em>Congelar &amp; Anotar</em> → <em>YOLO TF.js</em>. Tu elección queda recordada.</span>
                 </div>
               </div>
             </div>
