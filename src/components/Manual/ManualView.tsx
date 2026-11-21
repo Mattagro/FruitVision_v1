@@ -141,7 +141,7 @@ export const ManualView: React.FC<ManualViewProps> = ({ onNavigateTab }) => {
                 </div>
               </div>
               <p className="text-slate-300 pl-10 leading-relaxed">
-                Párate frente al árbol de manera que la copa ocupe la mayor parte de la pantalla. Arriba a la izquierda elige el detector: <strong>YOLO</strong> (tu modelo, recuadros verdes; es el modo por defecto si ya cargaste uno) o <strong>Color</strong> (recuadros ámbar; sensible a la luz, al pasto seco y no ve fruta verde). Con YOLO el contador se suaviza (mediana de los últimos cuadros) y va a pocos cuadros por segundo.
+                Párate frente al árbol de manera que la copa ocupe la mayor parte de la pantalla. Arriba a la izquierda elige el modo: <strong>Visor+YOLO</strong> (por defecto si ya cargaste un modelo): la cámara va fluida y <strong>YOLO cuenta al capturar</strong> (≈1 s al pulsar Congelar o Guardado Rápido). <strong>YOLO vivo</strong> (experimental) detecta en cada cuadro pero es lento en teléfonos medios. <strong>Color</strong> (recuadros ámbar) es sensible a la luz y al pasto seco, y no ve fruta verde.
               </p>
             </div>
 
@@ -238,7 +238,7 @@ export const ManualView: React.FC<ManualViewProps> = ({ onNavigateTab }) => {
                 </div>
                 <div className="p-3 rounded-xl bg-slate-950 border border-slate-800 sm:col-span-2">
                   <span className="font-bold text-white block mb-1">Selector Color / YOLO</span>
-                  <span>Con un modelo cargado (<em>Modelos YOLO</em>) la cámara usa YOLO por defecto; sin modelo solo hay Color. Si el teléfono tarda más de 2 s por cuadro, la app vuelve sola a Color y lo avisa: en ese caso usa <em>Congelar &amp; Anotar</em> → <em>YOLO TF.js</em>. Tu elección queda recordada.</span>
+                  <span>Con un modelo cargado (<em>Modelos YOLO</em>) el modo por defecto es <em>Visor+YOLO</em>: sin cuenta en pantalla mientras apuntas, y YOLO cuenta la foto al capturar (aparece «Contando…»). <em>YOLO vivo</em> cuenta en cada cuadro; si tarda más de 2 s, la app pasa sola a Visor+YOLO. Sin modelo solo hay Color. Tu elección queda recordada.</span>
                 </div>
               </div>
             </div>
