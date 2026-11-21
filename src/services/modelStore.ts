@@ -12,7 +12,7 @@ const KEY_THRESHOLDS = 'yolo_thresholds_v1';
 interface StoredFile { name: string; type: string; data: ArrayBuffer }
 interface StoredModel { savedAt: number; files: StoredFile[] }
 
-export interface StoredThresholds { conf: number; iou: number; tileGrid: 1 | 2 }
+export interface StoredThresholds { conf: number; iou: number; tileGrid: 1 | 2; letterbox: boolean }
 
 export async function saveModelFiles(files: File[]): Promise<void> {
   const stored: StoredFile[] = [];
@@ -40,5 +40,5 @@ export async function saveThresholds(t: StoredThresholds): Promise<void> {
 export async function loadThresholds(): Promise<StoredThresholds | null> {
   const t = await dbService.getSetting<StoredThresholds | null>(KEY_THRESHOLDS, null);
   if (!t || typeof t.conf !== 'number' || typeof t.iou !== 'number') return null;
-  return { conf: t.conf, iou: t.iou, tileGrid: t.tileGrid === 2 ? 2 : 1 };
+  return { conf: t.conf, iou: t.iou, tileGrid: t.tileGrid === 2 ? 2 : 1, letterbox: t.letterbox === true };
 }

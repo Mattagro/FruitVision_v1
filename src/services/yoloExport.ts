@@ -175,6 +175,7 @@ export function exportCapturesCsv(captures: CaptureRecord[]): string {
     'YOLO_Conf',
     'YOLO_IoU',
     'Teselado',
+    'Preproceso',
   ];
 
   const rows = captures.map(c => {
@@ -218,6 +219,7 @@ export function exportCapturesCsv(captures: CaptureRecord[]): string {
       pv?.yoloParams?.conf ?? '',
       pv?.yoloParams?.iou ?? '',
       pv?.yoloParams ? `${pv.yoloParams.tileGrid}x${pv.yoloParams.tileGrid}` : '',
+      pv?.yoloParams ? (pv.yoloParams.letterbox ? 'letterbox' : 'estirado') : '',
     ].join(',');
   });
 

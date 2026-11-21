@@ -81,7 +81,7 @@ export interface CaptureProvenance {
     classes: string[];
     modelType: string;
   };
-  yoloParams?: { conf: number; iou: number; tileGrid: 1 | 2 };
+  yoloParams?: { conf: number; iou: number; tileGrid: 1 | 2; letterbox?: boolean };  // letterbox ausente = estirado (capturas anteriores a v2.4.1)
 }
 
 export interface CaptureRecord {
@@ -115,6 +115,7 @@ export interface YoloModelConfig {
   confThreshold: number;
   iouThreshold: number;
   tileGrid: 1 | 2;           // 1x1 or 2x2 tiling
+  letterbox: boolean;        // true = mantiene la proporción al preprocesar (estándar Ultralytics); false = estira a cuadrado
   classes: string[];
   modelType: 'yolov8' | 'yolov11' | 'demo';
   isLoaded: boolean;

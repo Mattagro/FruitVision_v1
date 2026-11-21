@@ -505,6 +505,16 @@ export const ManualView: React.FC<ManualViewProps> = ({ onNavigateTab }) => {
           <div className="p-4 rounded-2xl bg-slate-900 border border-slate-800 space-y-2">
             <h4 className="font-bold text-white text-xs flex items-center gap-2">
               <HelpCircle className="w-4 h-4 text-amber-400" />
+              <span>¿Qué es "Preprocesado: Estirado / Letterbox" en Modelos YOLO?</span>
+            </h4>
+            <p className="text-slate-300 leading-relaxed pl-6">
+              Cómo se adapta la imagen al tamaño cuadrado que espera el modelo. <strong>Estirado</strong> (el de antes) la comprime y deforma los frutos en fotos o video 16:9. <strong>Letterbox</strong> mantiene la proporción y rellena con gris, como en el entrenamiento. Para elegir, detecta la misma foto con ambos y compara con tu conteo manual; el modo usado queda en la columna <em>Preproceso</em> del CSV. El cambio vale para el Anotador y la cámara en vivo.
+            </p>
+          </div>
+
+          <div className="p-4 rounded-2xl bg-slate-900 border border-slate-800 space-y-2">
+            <h4 className="font-bold text-white text-xs flex items-center gap-2">
+              <HelpCircle className="w-4 h-4 text-amber-400" />
               <span>¿Cómo valido que el conteo es confiable?</span>
             </h4>
             <p className="text-slate-300 leading-relaxed pl-6">
