@@ -381,7 +381,7 @@ export const CanvasAnnotator: React.FC<CanvasAnnotatorProps> = ({
   }
 
   return (
-    <div className="relative w-full h-[calc(100vh-4rem)] flex flex-col lg:flex-row bg-slate-950 overflow-hidden">
+    <div className="relative w-full h-[calc(100vh-4rem)] h-[calc(100dvh-4rem)] flex flex-col lg:flex-row bg-slate-950 overflow-hidden">
       
       {/* Main Canvas Viewport Area */}
       <div className="relative flex-1 h-full flex flex-col overflow-hidden">
@@ -508,7 +508,7 @@ export const CanvasAnnotator: React.FC<CanvasAnnotatorProps> = ({
         </div>
 
         {/* Bottom Zoom & Meta Toggle Bar */}
-        <div className="h-14 px-4 border-t border-slate-900 bg-slate-950 flex items-center justify-between gap-4 z-20">
+        <div className="min-h-14 px-3 sm:px-4 py-2 border-t border-slate-900 bg-slate-950 flex flex-wrap items-center justify-between gap-x-4 gap-y-2 z-20">
           <div className="flex items-center gap-1">
             <button
               onClick={() => setScale(s => Math.max(0.2, s * 0.85))}
@@ -547,17 +547,18 @@ export const CanvasAnnotator: React.FC<CanvasAnnotatorProps> = ({
             </button>
           </div>
 
-          <div className="flex items-center gap-3">
+          <div className="flex items-center gap-2 sm:gap-3 w-full sm:w-auto min-w-0 sm:justify-end order-first sm:order-none">
             <button
               onClick={handleClearAll}
-              className="text-xs text-rose-400 hover:text-rose-300 px-3 py-1.5 transition-colors cursor-pointer"
+              title="Limpiar todas las cajas"
+              className="text-xs text-rose-400 hover:text-rose-300 px-2 sm:px-3 py-1.5 transition-colors cursor-pointer whitespace-nowrap shrink-0"
             >
-              Limpiar Cajas
+              Limpiar
             </button>
 
             <button
               onClick={() => setShowMetaPanel(v => !v)}
-              className="lg:hidden text-xs text-amber-400 flex items-center gap-1 px-3 py-1.5 rounded-lg bg-amber-500/10 cursor-pointer"
+              className="lg:hidden text-xs text-amber-400 flex items-center gap-1 px-2.5 py-1.5 rounded-lg bg-amber-500/10 cursor-pointer shrink-0"
             >
               <span>Metadatos</span>
               {showMetaPanel ? <ChevronDown className="w-3.5 h-3.5" /> : <ChevronUp className="w-3.5 h-3.5" />}
@@ -565,10 +566,10 @@ export const CanvasAnnotator: React.FC<CanvasAnnotatorProps> = ({
 
             <button
               onClick={handleSave}
-              className="px-5 py-2 rounded-xl bg-amber-500 hover:bg-amber-400 text-slate-950 font-bold text-xs flex items-center gap-2 shadow-md active:scale-95 transition-all cursor-pointer"
+              className="px-4 sm:px-5 py-2 rounded-xl bg-amber-500 hover:bg-amber-400 text-slate-950 font-bold text-xs flex items-center gap-2 shadow-md active:scale-95 transition-all cursor-pointer flex-1 sm:flex-none justify-center min-w-0"
             >
-              <Save className="w-4 h-4" />
-              <span>Guardar Captura</span>
+              <Save className="w-4 h-4 shrink-0" />
+              <span className="whitespace-nowrap">Guardar<span className="hidden min-[380px]:inline"> Captura</span></span>
             </button>
           </div>
         </div>
@@ -757,6 +758,21 @@ export const CanvasAnnotator: React.FC<CanvasAnnotatorProps> = ({
                 {(((boxes.length * metadata.foliageCalibration * metadata.fruitWeightGram) / 1000)).toFixed(1)} kg
               </span>
             </div>
+            <div className="flex items-baseline justify-between mt-1.5 pt-1.5 border-t border-amber-500/20">
+              <span className="text-slate-300">Rendimiento:</span>
+              <span className="text-base font-bold text-emerald-400 font-mono tabular-nums">
+                {((boxes.length * metadata.foliageCalibration * metadata.fruitWeightGram * metadata.treeDensityHa) / 1_000_000).toFixed(1)} t/ha
+              </span>
+            </div>
+            <div className="flex items-baseline justify-between text-slate-400 text-[11px] mt-0.5">
+              <span>Equivale a:</span>
+              <span className="font-mono text-slate-200 tabular-nums">
+                {Math.round((boxes.length * metadata.foliageCalibration * metadata.fruitWeightGram * metadata.treeDensityHa) / 1000).toLocaleString('es-CL')} kg/ha
+              </span>
+            </div>
+            <p className="text-[10px] text-slate-500 mt-1.5 leading-snug">
+              Con {metadata.treeDensityHa} árboles/ha. Referencial: un árbol (cara {metadata.cara}); el valor del cuartel está en Rendimiento.
+            </p>
           </div>
 
         </div>
