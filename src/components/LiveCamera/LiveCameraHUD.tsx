@@ -376,7 +376,7 @@ export const LiveCameraHUD: React.FC<LiveCameraHUDProps> = ({
   };
 
   return (
-    <div className="relative w-full h-[calc(100vh-4rem)] flex flex-col bg-black overflow-hidden select-none">
+    <div className="relative w-full flex-1 min-h-0 flex flex-col bg-black overflow-hidden select-none">
       
       {/* Video Stream + HUD Layer */}
       <div className="relative flex-1 w-full h-full flex items-center justify-center overflow-hidden bg-slate-950">
@@ -400,21 +400,22 @@ export const LiveCameraHUD: React.FC<LiveCameraHUDProps> = ({
         )}
 
         {/* Top Info Bar (Transparent Glass HUD) */}
-        <div className="absolute top-4 left-4 right-4 flex items-center justify-between pointer-events-none">
-          <div className="flex items-center gap-3">
+        <div className="absolute top-3 left-3 right-3 flex flex-col gap-2 pointer-events-none">
+        <div className="flex flex-wrap items-start justify-between gap-2">
+          <div className="flex items-center gap-2 shrink-0">
             {/* Live Count Stat */}
             <div className="px-3.5 py-1.5 rounded-lg bg-slate-950/80 backdrop-blur-md border border-slate-800 flex items-center gap-2">
               <span className="w-2.5 h-2.5 rounded-full bg-amber-500 animate-pulse" />
-              <span className="text-xs uppercase tracking-wider text-slate-400 font-semibold">Cítricos</span>
+              <span className="hidden min-[400px]:inline text-xs uppercase tracking-wider text-slate-400 font-semibold">Cítricos</span>
               {mode === 'visor' ? (
-                <span className="text-[11px] font-semibold text-emerald-300 leading-tight">YOLO cuenta<br />al capturar</span>
+                <span className="text-[11px] font-semibold text-emerald-300 leading-tight whitespace-nowrap">YOLO cuenta<br />al capturar</span>
               ) : (
                 <span className="text-xl font-bold font-mono text-white tabular-nums">{liveCount}</span>
               )}
             </div>
 
             {/* FPS Counter */}
-            <div className="px-2.5 py-1.5 rounded-lg bg-slate-950/80 backdrop-blur-md border border-slate-800 text-xs font-mono text-slate-300 tabular-nums">
+            <div className="px-2.5 py-1.5 rounded-lg bg-slate-950/80 backdrop-blur-md border border-slate-800 text-xs font-mono text-slate-300 tabular-nums whitespace-nowrap">
               {mode === 'visor' ? 'Visor' : `${fps} FPS${mode === 'yolo' && inferMs > 0 ? ` · ${inferMs}ms` : ''}`}
             </div>
           </div>
@@ -453,7 +454,7 @@ export const LiveCameraHUD: React.FC<LiveCameraHUDProps> = ({
         </div>
 
         {/* Selector de detector: Color / YOLO */}
-        <div className="absolute top-16 left-4 flex flex-col gap-1.5 pointer-events-auto">
+        <div className="pointer-events-auto flex flex-col items-start gap-1.5">
           <div className="inline-flex rounded-lg overflow-hidden border border-slate-700 bg-slate-950/80 backdrop-blur-md text-xs font-semibold" role="group" aria-label="Detector en vivo">
             <button
               onClick={() => chooseMode('visor')}
@@ -482,17 +483,18 @@ export const LiveCameraHUD: React.FC<LiveCameraHUDProps> = ({
             </button>
           </div>
           {!hasModel && (
-            <span className="px-2 py-1 rounded bg-slate-950/80 text-[10px] text-slate-400 max-w-[11rem] leading-snug">
+            <span className="px-2 py-1 rounded bg-slate-950/80 text-[10px] text-slate-400 max-w-[16rem] leading-snug">
               Sin modelo propio: cuenta por color (poco fiable con fruta verde o pasto seco).
             </span>
           )}
           {yoloFailed && (
-            <span className="px-2 py-1 rounded bg-rose-950/80 text-[10px] text-rose-300 max-w-[11rem] leading-snug">
+            <span className="px-2 py-1 rounded bg-rose-950/80 text-[10px] text-rose-300 max-w-[16rem] leading-snug">
               {yoloIssue === 'slow'
                 ? 'YOLO vivo es lento en este teléfono (>2 s por cuadro): se pasó a Visor+YOLO (cuenta al capturar).'
                 : 'YOLO vivo falló en este dispositivo: se pasó a Visor+YOLO (cuenta al capturar).'}
             </span>
           )}
+        </div>
         </div>
 
         {/* Standby Screen when Camera is Manually Off */}

@@ -293,7 +293,7 @@ export default function App() {
   };
 
   return (
-    <div className="min-h-screen bg-slate-950 text-slate-100 flex flex-col antialiased">
+    <div className="h-screen h-dvh overflow-hidden bg-slate-950 text-slate-100 flex flex-col antialiased">
       
       {/* Hidden File Input */}
       <input
@@ -322,7 +322,7 @@ export default function App() {
       />
 
       {/* Main View Router */}
-      <main className="flex-1 flex flex-col overflow-y-auto">
+      <main className="flex-1 min-h-0 flex flex-col overflow-y-auto">
         {activeTab === 'camera' && (
           <LiveCameraHUD
             hsvParams={hsvParams}
