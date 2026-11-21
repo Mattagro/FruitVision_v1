@@ -1,6 +1,7 @@
 import * as tf from '@tensorflow/tfjs';
 import JSZip from 'jszip';
 import { BoundingBox, YoloModelConfig } from '../../types/citrus';
+import { tileGeometry, boxToTileNorm, LETTERBOX_FILL } from './letterbox';
 import { saveModelFiles, loadModelFiles, deleteModelFiles, saveThresholds, loadThresholds } from '../modelStore';
 
 export interface YoloInferenceResult {
@@ -36,6 +37,7 @@ export class YoloDetectorService {
     confThreshold: 0.35,
     iouThreshold: 0.45,
     tileGrid: 1,
+    letterbox: false,
     classes: ['citrus'],
     modelType: 'demo',
     isLoaded: false,
@@ -87,12 +89,13 @@ export class YoloDetectorService {
     this.listeners.forEach(l => { try { l(); } catch { /* un listener no debe romper la carga */ } });
   }
 
-  public setThresholds(conf: number, iou: number, tileGrid: 1 | 2) {
+  public setThresholds(conf: number, iou: number, tileGrid: 1 | 2, letterbox: boolean = this.config.letterbox) {
     this.config.confThreshold = conf;
     this.config.iouThreshold = iou;
     this.config.tileGrid = tileGrid;
+    this.config.letterbox = letterbox;
     // Recordar la sensibilidad elegida entre sesiones (no bloquea ni falla la UI).
-    saveThresholds({ conf, iou, tileGrid }).catch(e => console.warn('No se pudo guardar la sensibilidad:', e));
+    saveThresholds({ conf, iou, tileGrid, letterbox }).catch(e => console.warn('No se pudo guardar la sensibilidad:', e));
   }
 
   /**
@@ -106,6 +109,7 @@ export class YoloDetectorService {
         this.config.confThreshold = t.conf;
         this.config.iouThreshold = t.iou;
         this.config.tileGrid = t.tileGrid;
+        this.config.letterbox = t.letterbox;
       }
     } catch (e) {
       console.warn('No se pudo restaurar la sensibilidad:', e);
@@ -365,7 +369,7 @@ export class YoloDetectorService {
     startTime: number,
     tileGridOverride?: 1 | 2
   ): Promise<YoloInferenceResult> {
-    const { inputSize, confThreshold, iouThreshold } = this.config;
+    const { inputSize, confThreshold, iouThreshold, letterbox } = this.config;
     const tileGrid = tileGridOverride ?? this.config.tileGrid;
     const allBoxes: Array<{
       box: [number, number, number, number]; // [ymin, xmin, ymax, xmax]
@@ -398,11 +402,17 @@ export class YoloDetectorService {
     }
 
     for (const tile of tiles) {
-      this.offscreenCtx.clearRect(0, 0, inputSize, inputSize);
+      const geom = tileGeometry(tile.sw, tile.sh, inputSize, letterbox);
+      if (letterbox) {
+        this.offscreenCtx.fillStyle = LETTERBOX_FILL;
+        this.offscreenCtx.fillRect(0, 0, inputSize, inputSize);
+      } else {
+        this.offscreenCtx.clearRect(0, 0, inputSize, inputSize);
+      }
       this.offscreenCtx.drawImage(
         source,
         tile.sx, tile.sy, tile.sw, tile.sh,
-        0, 0, inputSize, inputSize
+        geom.padX, geom.padY, geom.drawW, geom.drawH
       );
 
       // Extract prediction within tf.tidy
@@ -456,11 +466,10 @@ export class YoloDetectorService {
         }
 
         if (maxScore >= confThreshold) {
-          // Normalize to tile coordinates
-          const left = Math.max(0, (cx - w / 2) / inputSize);
-          const top = Math.max(0, (cy - h / 2) / inputSize);
-          const right = Math.min(1, (cx + w / 2) / inputSize);
-          const bottom = Math.min(1, (cy + h / 2) / inputSize);
+          // Normalizar a coordenadas del tile (descontando el relleno del letterbox, si lo hay)
+          const nb = boxToTileNorm(cx, cy, w, h, geom);
+          if (!nb) continue;
+          const { left, top, right, bottom } = nb;
 
           // Project back to whole image normalized coordinates
           const globalX = (tile.sx + left * tile.sw) / sourceWidth;

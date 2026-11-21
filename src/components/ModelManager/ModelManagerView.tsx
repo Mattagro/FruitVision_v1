@@ -135,8 +135,8 @@ export const ModelManagerView: React.FC<ModelManagerViewProps> = ({ onModelLoade
     setFeedback(null);
   };
 
-  const updateThresholds = (conf: number, iou: number, tile: 1 | 2) => {
-    yoloDetector.setThresholds(conf, iou, tile);
+  const updateThresholds = (conf: number, iou: number, tile: 1 | 2, letterbox: boolean = config.letterbox) => {
+    yoloDetector.setThresholds(conf, iou, tile, letterbox);
     setConfig(yoloDetector.getConfig());
   };
 
@@ -474,6 +474,41 @@ print("¡Listo! Sube el archivo 'modelo_citrus_tfjs.zip' directamente a CitrusVi
                   <div className="text-[10px] text-slate-500 mt-0.5">Detecta cítricos pequeños y lejanos</div>
                 </button>
               </div>
+            </div>
+
+            {/* Preprocesado */}
+            <div className="space-y-1.5 text-xs pt-2 border-t border-slate-800">
+              <label className="text-slate-300 block mb-1.5 font-medium">Preprocesado de la imagen</label>
+              <div className="grid grid-cols-2 gap-2">
+                <button
+                  onClick={() => updateThresholds(config.confThreshold, config.iouThreshold, config.tileGrid, false)}
+                  aria-pressed={!config.letterbox}
+                  className={`px-3 py-2 rounded-xl text-xs font-medium border text-left transition-colors cursor-pointer ${
+                    !config.letterbox
+                      ? 'bg-emerald-500/20 text-emerald-300 border-emerald-500/40 font-semibold'
+                      : 'bg-slate-950 text-slate-400 border-slate-800'
+                  }`}
+                >
+                  <div className="font-bold">Estirado (actual)</div>
+                  <div className="text-[10px] text-slate-500 mt-0.5">Comprime a cuadrado; deforma en 16:9</div>
+                </button>
+
+                <button
+                  onClick={() => updateThresholds(config.confThreshold, config.iouThreshold, config.tileGrid, true)}
+                  aria-pressed={config.letterbox}
+                  className={`px-3 py-2 rounded-xl text-xs font-medium border text-left transition-colors cursor-pointer ${
+                    config.letterbox
+                      ? 'bg-emerald-500/20 text-emerald-300 border-emerald-500/40 font-semibold'
+                      : 'bg-slate-950 text-slate-400 border-slate-800'
+                  }`}
+                >
+                  <div className="font-bold">Letterbox</div>
+                  <div className="text-[10px] text-slate-500 mt-0.5">Mantiene proporción (como el entrenamiento)</div>
+                </button>
+              </div>
+              <p className="text-[10px] text-slate-500 leading-snug">
+                Para comparar: detecta la misma foto con cada opción y anota el conteo. El modo usado queda en la columna <em>Preproceso</em> del CSV.
+              </p>
             </div>
 
           </div>

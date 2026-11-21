@@ -46,7 +46,7 @@ export function buildProvenance(
       classes: cfg.classes,
       modelType: cfg.modelType,
     };
-    base.yoloParams = { conf: cfg.confThreshold, iou: cfg.iouThreshold, tileGrid: cfg.tileGrid };
+    base.yoloParams = { conf: cfg.confThreshold, iou: cfg.iouThreshold, tileGrid: cfg.tileGrid, letterbox: cfg.letterbox };
   }
 
   // Reabrir y re-guardar con el mismo método: conservar versión/modelo/umbrales originales
