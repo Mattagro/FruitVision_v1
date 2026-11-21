@@ -381,7 +381,7 @@ export const CanvasAnnotator: React.FC<CanvasAnnotatorProps> = ({
   }
 
   return (
-    <div className="relative w-full h-[calc(100vh-4rem)] h-[calc(100dvh-4rem)] flex flex-col lg:flex-row bg-slate-950 overflow-hidden">
+    <div className="relative w-full flex-1 min-h-0 flex flex-col lg:flex-row bg-slate-950 overflow-hidden">
       
       {/* Main Canvas Viewport Area */}
       <div className="relative flex-1 h-full flex flex-col overflow-hidden">
