@@ -68,6 +68,11 @@ export class YoloDetectorService {
 
   private listeners = new Set<() => void>();
 
+  /** true si hay un modelo propio cargado (no el detector demo precalibrado). */
+  public hasCustomModel(): boolean {
+    return !!this.model && this.config.isLoaded && this.config.modelType !== 'demo';
+  }
+
   public getConfig(): YoloModelConfig {
     return { ...this.config };
   }
@@ -336,13 +341,14 @@ export class YoloDetectorService {
   public async detect(
     source: CanvasImageSource,
     sourceWidth: number,
-    sourceHeight: number
+    sourceHeight: number,
+    opts?: { tileGrid?: 1 | 2 }
   ): Promise<YoloInferenceResult> {
     const startTime = performance.now();
 
     // If custom model is loaded, run real TF.js model graph inference
     if (this.model && this.config.isLoaded) {
-      return this.runTfInference(source, sourceWidth, sourceHeight, startTime);
+      return this.runTfInference(source, sourceWidth, sourceHeight, startTime, opts?.tileGrid);
     }
 
     // Otherwise run fast multi-scale citrus detector (Demo calibrated model)
@@ -356,9 +362,11 @@ export class YoloDetectorService {
     source: CanvasImageSource,
     sourceWidth: number,
     sourceHeight: number,
-    startTime: number
+    startTime: number,
+    tileGridOverride?: 1 | 2
   ): Promise<YoloInferenceResult> {
-    const { inputSize, confThreshold, iouThreshold, tileGrid } = this.config;
+    const { inputSize, confThreshold, iouThreshold } = this.config;
+    const tileGrid = tileGridOverride ?? this.config.tileGrid;
     const allBoxes: Array<{
       box: [number, number, number, number]; // [ymin, xmin, ymax, xmax]
       score: number;
