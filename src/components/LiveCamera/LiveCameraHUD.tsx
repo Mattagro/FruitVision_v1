@@ -18,10 +18,12 @@ const median = (arr: number[]): number => {
   return s.length % 2 ? s[m] : Math.round((s[m - 1] + s[m]) / 2);
 };
 
-const readModePref = (): 'color' | 'yolo' | null => {
+type LiveMode = 'visor' | 'yolo' | 'color';
+
+const readModePref = (): LiveMode | null => {
   try {
     const v = localStorage.getItem(MODE_KEY);
-    return v === 'color' || v === 'yolo' ? v : null;
+    return v === 'visor' || v === 'color' || v === 'yolo' ? v : null;
   } catch {
     return null;
   }
@@ -58,18 +60,26 @@ export const LiveCameraHUD: React.FC<LiveCameraHUDProps> = ({
   const [inferMs, setInferMs] = useState(0);
   const [yoloIssue, setYoloIssue] = useState<null | 'error' | 'slow'>(null);
   const yoloFailed = yoloIssue !== null;
-  const [modePref, setModePref] = useState<'color' | 'yolo' | null>(readModePref);
+  const [modePref, setModePref] = useState<LiveMode | null>(readModePref);
+  const [isCounting, setIsCounting] = useState(false);
 
   // ¿Hay un modelo propio cargado? (se restaura solo al abrir la app, puede tardar unos segundos)
   const hasModel = useSyncExternalStore(
     cb => yoloDetector.subscribe(cb),
     () => yoloDetector.hasCustomModel()
   );
-  // Con modelo cargado, YOLO es el modo por defecto; el usuario puede volver a Color.
-  const mode: 'color' | 'yolo' = hasModel && !yoloFailed ? (modePref ?? 'yolo') : 'color';
-  const chooseMode = (m: 'color' | 'yolo') => {
+  // Con modelo cargado el modo por defecto es "visor": cámara fluida y YOLO cuenta al capturar.
+  // "YOLO vivo" (experimental) cae a "visor" si el teléfono es lento; sin modelo solo hay Color.
+  const mode: LiveMode = !hasModel
+    ? 'color'
+    : modePref === 'color' ? 'color'
+    : modePref === 'yolo' && !yoloFailed ? 'yolo'
+    : 'visor';
+  const chooseMode = (m: LiveMode) => {
     setModePref(m);
-    if (m === 'yolo') { setYoloIssue(null); yoloFailuresRef.current = 0; yoloSlowRef.current = 0; }
+    setYoloIssue(null);
+    yoloFailuresRef.current = 0;
+    yoloSlowRef.current = 0;
     try { localStorage.setItem(MODE_KEY, m); } catch { /* sin almacenamiento: solo esta sesión */ }
   };
 
@@ -220,6 +230,14 @@ export const LiveCameraHUD: React.FC<LiveCameraHUDProps> = ({
     isBusyRef.current = false;
     canvasRef.current?.getContext('2d')?.clearRect(0, 0, canvasRef.current.width, canvasRef.current.height);
 
+    if (mode === 'visor') {
+      // Visor fluido: sin detección en vivo. YOLO cuenta al capturar.
+      setLastDetectedBoxes([]);
+      setLiveCount(0);
+      setFps(0);
+      return;
+    }
+
     const runDetectionLoop = () => {
       if (cancelled) return;
       const video = videoRef.current;
@@ -294,7 +312,7 @@ export const LiveCameraHUD: React.FC<LiveCameraHUDProps> = ({
   }, [isStreaming, hsvParams, mode]);
 
   // Capture current high-res frame from video
-  const captureCurrentFrame = (): { dataUrl: string; width: number; height: number } | null => {
+  const captureCurrentFrame = (): { dataUrl: string; width: number; height: number; canvas: HTMLCanvasElement } | null => {
     const video = videoRef.current;
     if (!video || video.readyState < 2) return null;
 
@@ -307,28 +325,49 @@ export const LiveCameraHUD: React.FC<LiveCameraHUDProps> = ({
       dataUrl: snapCanvas.toDataURL('image/jpeg', 0.94),
       width: snapCanvas.width,
       height: snapCanvas.height,
+      canvas: snapCanvas,
     };
   };
 
+  // En modo visor, YOLO cuenta UNA vez sobre el cuadro capturado (≈1 s, sin frenar la cámara).
+  const boxesForFrame = async (frame: { canvas: HTMLCanvasElement; width: number; height: number }): Promise<BoundingBox[]> => {
+    if (mode !== 'visor') return lastDetectedBoxes;
+    setIsCounting(true);
+    try {
+      const result = await yoloDetector.detect(frame.canvas, frame.width, frame.height);
+      return result.boxes;
+    } catch (err) {
+      console.warn('[YOLO al capturar] falló, se usan las cajas del visor:', err);
+      return lastDetectedBoxes;
+    } finally {
+      setIsCounting(false);
+    }
+  };
+
   // Handle Freeze & Annotate
-  const handleFreeze = () => {
+  const handleFreeze = async () => {
+    if (isCounting) return;
     const frame = captureCurrentFrame();
     if (!frame) return;
-    onFreezeFrame(frame.dataUrl, lastDetectedBoxes, frame.width, frame.height);
+    const boxes = await boxesForFrame(frame);
+    onFreezeFrame(frame.dataUrl, boxes, frame.width, frame.height);
   };
 
   // Handle Quick Save
-  const handleQuickSave = () => {
-    if (isProcessing) return;
+  const handleQuickSave = async () => {
+    if (isProcessing || isCounting) return;
     const frame = captureCurrentFrame();
     if (!frame) return;
 
     setIsProcessing(true);
-    onQuickSave(frame.dataUrl, lastDetectedBoxes, frame.width, frame.height);
-
-    setFlashSaved(true);
-    setTimeout(() => setFlashSaved(false), 800);
-    setIsProcessing(false);
+    try {
+      const boxes = await boxesForFrame(frame);
+      onQuickSave(frame.dataUrl, boxes, frame.width, frame.height);
+      setFlashSaved(true);
+      setTimeout(() => setFlashSaved(false), 800);
+    } finally {
+      setIsProcessing(false);
+    }
   };
 
   // Switch rear/front camera
@@ -367,12 +406,16 @@ export const LiveCameraHUD: React.FC<LiveCameraHUDProps> = ({
             <div className="px-3.5 py-1.5 rounded-lg bg-slate-950/80 backdrop-blur-md border border-slate-800 flex items-center gap-2">
               <span className="w-2.5 h-2.5 rounded-full bg-amber-500 animate-pulse" />
               <span className="text-xs uppercase tracking-wider text-slate-400 font-semibold">Cítricos</span>
-              <span className="text-xl font-bold font-mono text-white tabular-nums">{liveCount}</span>
+              {mode === 'visor' ? (
+                <span className="text-[11px] font-semibold text-emerald-300 leading-tight">YOLO cuenta<br />al capturar</span>
+              ) : (
+                <span className="text-xl font-bold font-mono text-white tabular-nums">{liveCount}</span>
+              )}
             </div>
 
             {/* FPS Counter */}
             <div className="px-2.5 py-1.5 rounded-lg bg-slate-950/80 backdrop-blur-md border border-slate-800 text-xs font-mono text-slate-300 tabular-nums">
-              {fps} FPS{mode === 'yolo' && inferMs > 0 ? ` · ${inferMs}ms` : ''}
+              {mode === 'visor' ? 'Visor' : `${fps} FPS${mode === 'yolo' && inferMs > 0 ? ` · ${inferMs}ms` : ''}`}
             </div>
           </div>
 
@@ -413,20 +456,29 @@ export const LiveCameraHUD: React.FC<LiveCameraHUDProps> = ({
         <div className="absolute top-16 left-4 flex flex-col gap-1.5 pointer-events-auto">
           <div className="inline-flex rounded-lg overflow-hidden border border-slate-700 bg-slate-950/80 backdrop-blur-md text-xs font-semibold" role="group" aria-label="Detector en vivo">
             <button
-              onClick={() => chooseMode('color')}
-              aria-pressed={mode === 'color'}
-              className={`px-3 py-1.5 cursor-pointer ${mode === 'color' ? 'bg-amber-500 text-slate-950' : 'text-slate-300 hover:text-white'}`}
+              onClick={() => chooseMode('visor')}
+              disabled={!hasModel}
+              aria-pressed={mode === 'visor'}
+              title={hasModel ? 'Cámara fluida; YOLO cuenta al capturar (recomendado)' : 'Carga un modelo en la pestaña Modelos YOLO'}
+              className={`px-3 py-1.5 ${mode === 'visor' ? 'bg-emerald-500 text-slate-950' : 'text-slate-300 hover:text-white'} ${hasModel ? 'cursor-pointer' : 'opacity-40 cursor-not-allowed'}`}
             >
-              Color
+              Visor+YOLO
             </button>
             <button
               onClick={() => chooseMode('yolo')}
               disabled={!hasModel}
               aria-pressed={mode === 'yolo'}
-              title={hasModel ? 'Detección con tu modelo YOLO' : 'Carga un modelo en la pestaña Modelos YOLO'}
+              title={hasModel ? 'YOLO en cada cuadro (lento en teléfonos medios)' : 'Carga un modelo en la pestaña Modelos YOLO'}
               className={`px-3 py-1.5 ${mode === 'yolo' ? 'bg-emerald-500 text-slate-950' : 'text-slate-300 hover:text-white'} ${hasModel ? 'cursor-pointer' : 'opacity-40 cursor-not-allowed'}`}
             >
-              YOLO
+              YOLO vivo
+            </button>
+            <button
+              onClick={() => chooseMode('color')}
+              aria-pressed={mode === 'color'}
+              className={`px-3 py-1.5 cursor-pointer ${mode === 'color' ? 'bg-amber-500 text-slate-950' : 'text-slate-300 hover:text-white'}`}
+            >
+              Color
             </button>
           </div>
           {!hasModel && (
@@ -437,8 +489,8 @@ export const LiveCameraHUD: React.FC<LiveCameraHUDProps> = ({
           {yoloFailed && (
             <span className="px-2 py-1 rounded bg-rose-950/80 text-[10px] text-rose-300 max-w-[11rem] leading-snug">
               {yoloIssue === 'slow'
-                ? 'Este teléfono es lento para YOLO en vivo (>2 s por cuadro): se volvió a Color. Usa Congelar & Anotar → YOLO TF.js.'
-                : 'YOLO falló en este dispositivo; se volvió a Color.'}
+                ? 'YOLO vivo es lento en este teléfono (>2 s por cuadro): se pasó a Visor+YOLO (cuenta al capturar).'
+                : 'YOLO vivo falló en este dispositivo: se pasó a Visor+YOLO (cuenta al capturar).'}
             </span>
           )}
         </div>
@@ -519,17 +571,17 @@ export const LiveCameraHUD: React.FC<LiveCameraHUDProps> = ({
         {/* Primary Shutter Action: Freeze & Annotate */}
         <button
           onClick={handleFreeze}
-          disabled={!isStreaming}
+          disabled={!isStreaming || isCounting}
           className="h-16 px-6 rounded-2xl bg-amber-500 hover:bg-amber-400 disabled:opacity-40 text-slate-950 font-bold text-base flex items-center gap-3 shadow-lg shadow-amber-500/20 active:scale-95 transition-all cursor-pointer shrink-0"
         >
           <Snowflake className="w-6 h-6" />
-          <span>Congelar & Anotar</span>
+          <span>{isCounting ? 'Contando…' : 'Congelar & Anotar'}</span>
         </button>
 
         {/* Instant Quick Save */}
         <button
           onClick={handleQuickSave}
-          disabled={isProcessing || !isStreaming}
+          disabled={isProcessing || isCounting || !isStreaming}
           className="w-12 h-12 rounded-full bg-emerald-600 hover:bg-emerald-500 disabled:opacity-30 text-white flex items-center justify-center shadow-md active:scale-95 transition-all cursor-pointer"
           title="Guardado Rápido Directo"
         >
