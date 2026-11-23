@@ -341,6 +341,7 @@ export default function App() {
             hsvParams={hsvParams}
             onSaveCapture={handleSaveFromAnnotator}
             onOpenLiveCamera={() => setActiveTab('camera')}
+            onLeaveDraft={(b, m) => { setCurrentBoxes(b); setCurrentMetadata(m); }}
           />
         )}
 

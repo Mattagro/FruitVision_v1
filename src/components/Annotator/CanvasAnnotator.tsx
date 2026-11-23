@@ -1,6 +1,6 @@
 import React, { useRef, useState, useEffect, useCallback } from 'react';
 import { 
-  ZoomIn, ZoomOut, RotateCcw, Trash2, 
+  ZoomIn, ZoomOut, RotateCcw, Trash2, ArrowLeft, 
   Sparkles, Cpu, Save, Plus, Move, 
   MapPin, Check, ChevronDown, ChevronUp 
 } from 'lucide-react';
@@ -16,6 +16,8 @@ interface CanvasAnnotatorProps {
   hsvParams: HsvFilterParams;
   onSaveCapture: (boxes: BoundingBox[], metadata: CaptureMetadata) => void;
   onOpenLiveCamera: () => void;
+  /** Se llama al salir de la pestaña con el borrador actual, para no perder las cajas sin guardar. */
+  onLeaveDraft?: (boxes: BoundingBox[], metadata: CaptureMetadata) => void;
 }
 
 export const CanvasAnnotator: React.FC<CanvasAnnotatorProps> = ({
@@ -25,6 +27,7 @@ export const CanvasAnnotator: React.FC<CanvasAnnotatorProps> = ({
   hsvParams,
   onSaveCapture,
   onOpenLiveCamera,
+  onLeaveDraft,
 }) => {
   const containerRef = useRef<HTMLDivElement>(null);
   const canvasRef = useRef<HTMLCanvasElement>(null);
@@ -51,6 +54,15 @@ export const CanvasAnnotator: React.FC<CanvasAnnotatorProps> = ({
   // Loading indicator for detections
   const [isDetecting, setIsDetecting] = useState(false);
   const [detectionNotice, setDetectionNotice] = useState<string | null>(null);
+
+  // Borrador: al salir de la pestaña (desmontar) se devuelven las cajas y metadatos actuales
+  const draftRef = useRef<{ boxes: BoundingBox[]; metadata: CaptureMetadata }>({ boxes: initialBoxes, metadata: initialMetadata });
+  draftRef.current = { boxes, metadata };
+  const onLeaveDraftRef = useRef(onLeaveDraft);
+  onLeaveDraftRef.current = onLeaveDraft;
+  useEffect(() => {
+    return () => onLeaveDraftRef.current?.(draftRef.current.boxes, draftRef.current.metadata);
+  }, []);
 
   // Sync initialBoxes when prop changes
   useEffect(() => {
@@ -384,7 +396,7 @@ export const CanvasAnnotator: React.FC<CanvasAnnotatorProps> = ({
     <div className="relative w-full flex-1 min-h-0 flex flex-col lg:flex-row bg-slate-950 overflow-hidden">
       
       {/* Main Canvas Viewport Area */}
-      <div className="relative flex-1 h-full flex flex-col overflow-hidden">
+      <div className="relative flex-1 min-h-0 lg:h-full flex flex-col overflow-hidden">
         
         {/* Floating Top Canvas Toolbar */}
         <div className="absolute top-4 left-4 right-4 z-20 flex flex-wrap items-center justify-between gap-3 pointer-events-none">
@@ -508,7 +520,7 @@ export const CanvasAnnotator: React.FC<CanvasAnnotatorProps> = ({
         </div>
 
         {/* Bottom Zoom & Meta Toggle Bar */}
-        <div className="min-h-14 px-3 sm:px-4 py-2 border-t border-slate-900 bg-slate-950 flex flex-wrap items-center justify-between gap-x-4 gap-y-2 z-20">
+        <div className="shrink-0 min-h-14 px-3 sm:px-4 py-2 border-t border-slate-900 bg-slate-950 flex flex-wrap items-center justify-between gap-x-4 gap-y-2 z-20">
           <div className="flex items-center gap-1">
             <button
               onClick={() => setScale(s => Math.max(0.2, s * 0.85))}
@@ -577,16 +589,27 @@ export const CanvasAnnotator: React.FC<CanvasAnnotatorProps> = ({
       </div>
 
       {/* Right Orchard Metadata Sidebar (Responsive drawer on mobile) */}
+      {/* En móvil es una hoja a pantalla completa con su propio "Volver"; las cajas se conservan. */}
       <div
         className={`${
           showMetaPanel ? 'flex' : 'hidden lg:flex'
-        } w-full lg:w-80 border-t lg:border-t-0 lg:border-l border-slate-800 bg-slate-900/90 backdrop-blur-md flex-col h-auto lg:h-full overflow-y-auto p-4 z-30`}
+        } absolute inset-0 lg:static lg:inset-auto w-full lg:w-80 lg:border-l border-slate-800 bg-slate-900 lg:bg-slate-900/90 backdrop-blur-md flex-col min-h-0 lg:h-full z-40 lg:z-30`}
+        role="dialog"
+        aria-label="Contexto de muestreo"
       >
-        <div className="flex items-center justify-between pb-3 border-b border-slate-800 mb-4">
-          <h3 className="text-sm font-bold text-white">Contexto de Muestreo</h3>
-          <span className="text-xs text-slate-500 font-mono">ID: {metadata.id.slice(-6)}</span>
+        <div className="flex items-center gap-2 px-4 py-3 border-b border-slate-800 shrink-0">
+          <button
+            onClick={() => setShowMetaPanel(false)}
+            className="lg:hidden flex items-center gap-1.5 px-2.5 py-1.5 -ml-1 rounded-lg bg-slate-800 text-xs font-semibold text-slate-100 cursor-pointer shrink-0"
+          >
+            <ArrowLeft className="w-4 h-4" />
+            <span>Cajas</span>
+          </button>
+          <h3 className="text-sm font-bold text-white truncate">Contexto de Muestreo</h3>
+          <span className="ml-auto text-xs text-slate-500 font-mono shrink-0">ID: {metadata.id.slice(-6)}</span>
         </div>
 
+        <div className="flex-1 min-h-0 overflow-y-auto p-4">
         <div className="space-y-3.5 text-xs">
           
           {/* Predio y Cuartel */}
@@ -775,6 +798,25 @@ export const CanvasAnnotator: React.FC<CanvasAnnotatorProps> = ({
             </p>
           </div>
 
+        </div>
+        </div>
+
+        {/* Pie fijo solo en móvil: volver a editar cajas o guardar sin salir de aquí */}
+        <div className="lg:hidden shrink-0 flex items-center gap-2 p-3 border-t border-slate-800 bg-slate-950">
+          <button
+            onClick={() => setShowMetaPanel(false)}
+            className="flex-1 px-3 py-2.5 rounded-xl bg-slate-800 text-slate-100 text-xs font-semibold flex items-center justify-center gap-1.5 cursor-pointer"
+          >
+            <ArrowLeft className="w-4 h-4" />
+            <span>Volver a las cajas ({boxes.length})</span>
+          </button>
+          <button
+            onClick={handleSave}
+            className="flex-1 px-3 py-2.5 rounded-xl bg-amber-500 text-slate-950 font-bold text-xs flex items-center justify-center gap-1.5 cursor-pointer"
+          >
+            <Save className="w-4 h-4" />
+            <span>Guardar</span>
+          </button>
         </div>
       </div>
 
