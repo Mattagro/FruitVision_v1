@@ -293,7 +293,7 @@ export default function App() {
   };
 
   return (
-    <div className="h-screen h-dvh overflow-hidden bg-slate-950 text-slate-100 flex flex-col antialiased">
+    <div className="fixed inset-x-0 top-0 h-screen h-dvh overflow-hidden bg-slate-950 text-slate-100 flex flex-col antialiased" style={{ height: 'var(--app-h, 100dvh)' }}>
       
       {/* Hidden File Input */}
       <input
