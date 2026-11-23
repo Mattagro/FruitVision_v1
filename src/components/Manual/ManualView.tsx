@@ -261,6 +261,7 @@ export const ManualView: React.FC<ManualViewProps> = ({ onNavigateTab }) => {
                 <li><strong>Modo Seleccionar:</strong> Toca cualquier recuadro para ver sus dimensiones o eliminarlo con la papelera.</li>
                 <li><strong>Ficha de Datos del Árbol (Panel derecho):</strong> Aquí puedes cambiar predio, cuartel, hilera, número de árbol y cara (N, S, E, O o Total) antes de guardar. Si repites el mismo árbol y cara, la app avisa para no duplicar.</li>
                 <li><strong>Guardar Captura:</strong> botón amarillo en la barra inferior (junto a Limpiar y Metadatos). Sin pulsarlo, la foto no queda guardada ni aparece en Rendimiento.</li>
+                <li><strong>Metadatos en el móvil:</strong> abre una hoja a pantalla completa. Para volver a las cajas usa «← Cajas» (arriba) o «Volver a las cajas» (abajo); tus cajas manuales no se pierden. Si cambias de pestaña sin guardar, el borrador se conserva al volver al Anotador.</li>
                 <li><strong>Proyección de este Árbol:</strong> muestra frutos estimados, kg, t/ha y kg/ha con los parámetros de la ficha. Es referencial (un árbol); el valor del cuartel está en Rendimiento.</li>
                 <li><strong>YOLO TF.js:</strong> detecta con el modelo cargado en <em>Modelos YOLO</em> y reemplaza todos los cuadros (hay deshacer). Si cambias de modelo, vuelve a detectar antes de guardar.</li>
               </ul>
