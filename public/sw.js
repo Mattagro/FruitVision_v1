@@ -1,5 +1,5 @@
 /* Service Worker for CitrusVision Offline PWA */
-const CACHE_NAME = 'citrus-vision-v2.4.4';
+const CACHE_NAME = 'citrus-vision-v2.4.5';
 
 // Assets to cache immediately on install
 const PRECACHE_ASSETS = [

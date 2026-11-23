@@ -2,6 +2,18 @@ import {createRoot} from 'react-dom/client';
 import App from './App.tsx';
 import './index.css';
 
+// Alto real visible. Samsung Internet (y otros) pueden reportar 100dvh mayor que el área
+// visible: la barra inferior del navegador tapa la última franja de la app. Se mide con
+// visualViewport (o innerHeight) y se expone como --app-h para el contenedor raíz.
+const setAppHeight = () => {
+  const h = window.visualViewport?.height ?? window.innerHeight;
+  document.documentElement.style.setProperty('--app-h', `${Math.round(h)}px`);
+};
+setAppHeight();
+window.addEventListener('resize', setAppHeight);
+window.addEventListener('orientationchange', setAppHeight);
+window.visualViewport?.addEventListener('resize', setAppHeight);
+
 // Register Service Worker for Offline PWA support with auto-update
 if ('serviceWorker' in navigator) {
   window.addEventListener('load', () => {

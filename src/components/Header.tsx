@@ -20,7 +20,7 @@ export const Header: React.FC<HeaderProps> = ({
 }) => {
   return (
     <header className="sticky top-0 z-40 w-full border-b border-slate-800 bg-slate-950/90 backdrop-blur-md">
-      <div className="max-w-7xl mx-auto px-4 sm:px-6 flex items-center justify-between gap-8 h-16">
+      <div className="max-w-7xl mx-auto px-4 sm:px-6 flex items-center justify-between gap-3 lg:gap-8 h-16">
         
         {/* Zone 1: Brand Wordmark (Single text element) */}
         <div className="flex items-center gap-3 shrink-0">
@@ -132,7 +132,7 @@ export const Header: React.FC<HeaderProps> = ({
             onClick={onNewPhotoClick}
             className="px-3.5 py-1.5 sm:px-4 sm:py-2 text-xs font-semibold text-slate-950 bg-amber-500 hover:bg-amber-400 active:scale-95 transition-all rounded-lg whitespace-nowrap shrink-0 shadow-sm cursor-pointer"
           >
-            Cargar Foto
+            <span className="hidden min-[360px]:inline">Cargar </span>Foto
           </button>
         </div>
 

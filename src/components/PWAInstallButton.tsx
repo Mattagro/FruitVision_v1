@@ -32,11 +32,11 @@ export const PWAInstallButton: React.FC = () => {
       <button
         onClick={handleButtonClick}
         title="Instalar como aplicación en tu móvil para uso sin conexión a internet"
-        className="flex items-center gap-1.5 px-3 py-1.5 text-xs font-semibold text-amber-300 bg-amber-500/15 hover:bg-amber-500/25 border border-amber-500/30 active:scale-95 transition-all rounded-lg cursor-pointer shrink-0 shadow-sm"
+        className="flex items-center gap-1.5 px-2 sm:px-3 py-1.5 text-xs font-semibold text-amber-300 bg-amber-500/15 hover:bg-amber-500/25 border border-amber-500/30 active:scale-95 transition-all rounded-lg cursor-pointer shrink-0 shadow-sm"
       >
         <Download className="w-3.5 h-3.5 animate-pulse" />
         <span className="hidden sm:inline">Instalar en Móvil</span>
-        <span className="sm:hidden">Instalar App</span>
+        <span className="sr-only sm:hidden">Instalar App</span>
       </button>
 
       {/* Instructional Modal for Manual Installation or iOS */}
