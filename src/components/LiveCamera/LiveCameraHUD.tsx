@@ -93,7 +93,16 @@ export const LiveCameraHUD: React.FC<LiveCameraHUDProps> = ({
   const yoloSlowRef = useRef<number>(0);
 
   // Start Camera Stream
+  const startReqRef = useRef(0);
   const startCamera = useCallback(async () => {
+    const reqId = ++startReqRef.current;
+    // Si el teléfono no responde (cámara ocupada por otra ventana, permiso sin contestar),
+    // la solicitud queda esperando sin error: se avisa en vez de dejar la pantalla negra.
+    const slowTimer = window.setTimeout(() => {
+      if (reqId === startReqRef.current) {
+        setCameraError('La cámara no responde. Si CitrusVision está abierta también en el navegador u otra app usa la cámara, ciérrala y pulsa Reintentar. Revisa además el permiso de cámara.');
+      }
+    }, 8000);
     try {
       setCameraError(null);
       if (videoRef.current && videoRef.current.srcObject) {
@@ -111,21 +120,31 @@ export const LiveCameraHUD: React.FC<LiveCameraHUDProps> = ({
       };
 
       const stream = await navigator.mediaDevices.getUserMedia(constraints);
+      if (reqId !== startReqRef.current) {
+        // Llegó tarde: hay una solicitud más nueva (o la cámara se detuvo). Se suelta esta.
+        stream.getTracks().forEach(t => t.stop());
+        return;
+      }
       if (videoRef.current) {
         videoRef.current.srcObject = stream;
         await videoRef.current.play();
+        setCameraError(null);
         setIsStreaming(true);
       }
     } catch (err: unknown) {
+      if (reqId !== startReqRef.current) return;
       const msg = err instanceof Error ? err.message : String(err);
       console.warn('Error al acceder a la cámara:', msg);
       setCameraError('No se pudo acceder a la cámara. Puedes utilizar una foto de prueba o cargar una imagen.');
       setIsStreaming(false);
+    } finally {
+      window.clearTimeout(slowTimer);
     }
   }, [facingMode]);
 
   // Stop Camera
   const stopCamera = useCallback(() => {
+    startReqRef.current++; // invalida cualquier solicitud de cámara aún pendiente
     if (animFrameIdRef.current) {
       cancelAnimationFrame(animFrameIdRef.current);
       animFrameIdRef.current = null;
@@ -162,6 +181,20 @@ export const LiveCameraHUD: React.FC<LiveCameraHUDProps> = ({
     return () => {
       stopCamera();
     };
+  }, [startCamera, stopCamera, isManuallyOff]);
+
+  // Al pasar a segundo plano (otra pestaña, otra app, abrir la PWA instalada) se libera la cámara,
+  // y al volver se retoma. Así una ventana no deja la cámara ocupada para la otra.
+  useEffect(() => {
+    const onVisibility = () => {
+      if (document.visibilityState === 'hidden') {
+        stopCamera();
+      } else if (!isManuallyOff) {
+        startCamera();
+      }
+    };
+    document.addEventListener('visibilitychange', onVisibility);
+    return () => document.removeEventListener('visibilitychange', onVisibility);
   }, [startCamera, stopCamera, isManuallyOff]);
 
   // Dibuja las cajas del HUD (ámbar = color, verde = YOLO)
