@@ -47,6 +47,65 @@ export class FastAdaptiveColorDetector {
     return [h, s, v];
   }
 
+  /** Ganancia de luz según el brillo medio de la imagen (la misma que usa detect). */
+  private static computeLumGain(data: Uint8ClampedArray, totalPixels: number): number {
+    let sumLum = 0;
+    const step = 8; // 1 de cada 8 píxeles, por velocidad
+    let sampled = 0;
+    for (let i = 0; i < totalPixels * 4; i += 4 * step) {
+      sumLum += 0.299 * data[i] + 0.587 * data[i + 1] + 0.114 * data[i + 2];
+      sampled++;
+    }
+    const meanLum = sumLum / Math.max(1, sampled);
+    if (meanLum < 75) return 1.25;  // sombra densa
+    if (meanLum > 175) return 0.85; // sol fuerte de mediodía
+    return 1.0;
+  }
+
+  /**
+   * Color HSV (mediana de un parche circular) en el punto normalizado (nx, ny) de la imagen.
+   * Usa el mismo tamaño de proceso y la misma corrección de luz que detect(), para que el
+   * rango calculado a partir de la muestra coincida con lo que luego filtra el detector.
+   */
+  public sampleHsv(
+    source: CanvasImageSource,
+    sourceWidth: number,
+    sourceHeight: number,
+    nx: number,
+    ny: number,
+    adaptiveLuminance: boolean
+  ): { h: number; s: number; v: number } | null {
+    const maxDim = 480;
+    const scale = Math.min(1, maxDim / Math.max(sourceWidth, sourceHeight));
+    const procW = Math.max(64, Math.round(sourceWidth * scale));
+    const procH = Math.max(64, Math.round(sourceHeight * scale));
+    if (this.offscreenCanvas.width !== procW || this.offscreenCanvas.height !== procH) {
+      this.offscreenCanvas.width = procW;
+      this.offscreenCanvas.height = procH;
+    }
+    this.offscreenCtx.drawImage(source, 0, 0, procW, procH);
+    const data = this.offscreenCtx.getImageData(0, 0, procW, procH).data;
+    const gain = adaptiveLuminance ? FastAdaptiveColorDetector.computeLumGain(data, procW * procH) : 1.0;
+
+    const cx = Math.round(nx * (procW - 1));
+    const cy = Math.round(ny * (procH - 1));
+    const rad = Math.max(2, Math.round(Math.min(procW, procH) * 0.012));
+    const rs: number[] = [], gs: number[] = [], bs: number[] = [];
+    for (let y = Math.max(0, cy - rad); y <= Math.min(procH - 1, cy + rad); y++) {
+      for (let x = Math.max(0, cx - rad); x <= Math.min(procW - 1, cx + rad); x++) {
+        if ((x - cx) ** 2 + (y - cy) ** 2 > rad * rad) continue;
+        const i = (y * procW + x) * 4;
+        rs.push(Math.min(255, data[i] * gain));
+        gs.push(Math.min(255, data[i + 1] * gain));
+        bs.push(Math.min(255, data[i + 2] * gain));
+      }
+    }
+    if (rs.length === 0) return null;
+    const med = (a: number[]) => { a.sort((p, q) => p - q); return a[Math.floor(a.length / 2)]; };
+    const [h, s, v] = FastAdaptiveColorDetector.rgbToHsv(med(rs), med(gs), med(bs));
+    return { h: Math.round(h), s: Math.round(s), v: Math.round(v) };
+  }
+
   /**
    * Run detection on any image source (Video, Image, Canvas)
    */
@@ -76,21 +135,9 @@ export class FastAdaptiveColorDetector {
     const totalPixels = procW * procH;
 
     // Optional adaptive luminance factor
-    let lumGain = 1.0;
-    if (params.adaptiveLuminance) {
-      let sumLum = 0;
-      // sample every 8th pixel for speed
-      const step = 8;
-      let sampled = 0;
-      for (let i = 0; i < totalPixels * 4; i += 4 * step) {
-        sumLum += 0.299 * data[i] + 0.587 * data[i + 1] + 0.114 * data[i + 2];
-        sampled++;
-      }
-      const meanLum = sumLum / Math.max(1, sampled);
-      // Target median luminance ~ 120
-      if (meanLum < 75) lumGain = 1.25;      // deep canopy shade
-      else if (meanLum > 175) lumGain = 0.85; // harsh midday sunlight
-    }
+    const lumGain = params.adaptiveLuminance
+      ? FastAdaptiveColorDetector.computeLumGain(data, totalPixels)
+      : 1.0;
 
     // 1. Thresholding to Binary Mask
     const binaryMask = new Uint8Array(totalPixels);

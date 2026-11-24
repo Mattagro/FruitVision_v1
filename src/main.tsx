@@ -6,7 +6,10 @@ import './index.css';
 // visible: la barra inferior del navegador tapa la última franja de la app. Se mide con
 // visualViewport (o innerHeight) y se expone como --app-h para el contenedor raíz.
 const setAppHeight = () => {
-  const h = window.visualViewport?.height ?? window.innerHeight;
+  // visualViewport.height se encoge al ampliar con los dedos; × scale devuelve el alto
+  // visible del layout, que no cambia con el zoom del navegador.
+  const vv = window.visualViewport;
+  const h = vv ? vv.height * vv.scale : window.innerHeight;
   document.documentElement.style.setProperty('--app-h', `${Math.round(h)}px`);
 };
 setAppHeight();
